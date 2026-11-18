@@ -1,21 +1,30 @@
 'use strict';
 
-const saveKey = 'bellwether.campaign';
-const modelKey = 'bellwether.model';
-const element = id => document.getElementById(id);
-const modelSelect = element('model-select');
-const newGameButton = element('new-game');
-const newGameDialog = element('new-game-dialog');
-const log = element('turn-log');
-const form = element('action-form');
-const actionInput = element('action');
-const actionButton = element('submit-action');
-const suggestions = element('suggestions');
-const retryLoad = element('retry-load');
+const find = (id) => document.getElementById(id);
+const settings = find('settings');
+const modelSearch = find('model-search');
+const modelSelect = find('model-select');
+const modelStatus = find('model-status');
+const catalogErrors = find('catalog-errors');
+const reloadModels = find('reload-models');
+const systemPrompt = find('system-prompt');
+const newChat = find('new-chat');
+const transcript = find('transcript');
+const emptyState = find('empty-state');
+const form = find('chat-form');
+const chatInput = find('chat-input');
+const sendMessage = find('send-message');
+const chatStatus = find('chat-status');
+const chatError = find('chat-error');
+
+const providerNames = { openai: 'OpenAI', openrouter: 'OpenRouter' };
+const modelKey = 'harbinger.model';
+const promptKey = 'harbinger.systemPrompt';
 let models = [];
-let game;
-let busy = false;
-let pendingTurn;
+let selectedKey = readPreference(modelKey) ?? '';
+let messages = [];
+let loadingModels = true;
+let sending = false;
 
 function readPreference(key) {
   try {
@@ -28,275 +37,231 @@ function readPreference(key) {
 function savePreference(key, value) {
   try {
     localStorage.setItem(key, value);
-    return true;
   } catch {
-    return false;
+    // Settings still work when browser storage is unavailable.
   }
 }
 
-async function request(path, payload) {
-  const options = payload === undefined ? {} : {
+async function request(path, body) {
+  const options = body === undefined ? {} : {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   };
   const response = await fetch(path, options);
-  const value = await response.json().catch(() => null);
-  if (!response.ok || !value) {
-    const error = new Error(value?.error || `The game server returned HTTP ${response.status}.`);
-    error.status = response.status;
-    error.code = value?.code;
-    throw error;
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    throw new Error(data?.error || `Request failed (HTTP ${response.status}).`);
   }
-  return value;
+  return data;
 }
 
-function textElement(tag, text, className) {
-  const node = document.createElement(tag);
-  node.textContent = text;
-  if (className) node.className = className;
-  return node;
+function modelValue(model) {
+  return `${model.provider}:${model.id}`;
 }
 
-function updateControls() {
-  const ready = Boolean(game && modelSelect.value);
-  newGameButton.disabled = busy || !models.length;
-  modelSelect.disabled = busy || !models.some(model => model.available);
-  actionInput.disabled = !ready;
-  actionInput.readOnly = busy;
-  actionButton.disabled = busy || !ready || !actionInput.value.trim();
-  form.setAttribute('aria-busy', String(busy));
-  for (const button of suggestions.children) button.disabled = busy || !ready;
-}
-
-function setFeedback(text = '', kind = '') {
-  const message = element('action-message');
-  message.textContent = text;
-  message.dataset.kind = kind;
-  element('key-hint').hidden = Boolean(text);
+function selectable(model) {
+  return model.available && model.chat;
 }
 
 function selectedModel() {
-  return models.find(model => model.id === modelSelect.value);
+  return models.find((model) => modelValue(model) === selectedKey && selectable(model));
 }
 
-function renderModelInfo() {
-  element('model-description').textContent = selectedModel()?.description ?? '';
+function updateControls() {
+  const ready = Boolean(selectedModel());
+  chatInput.disabled = !ready;
+  chatInput.readOnly = sending;
+  sendMessage.disabled = !ready || sending || !chatInput.value.trim();
+  sendMessage.textContent = sending ? 'Sending…' : 'Send';
+  newChat.disabled = sending || (!messages.length && !chatInput.value);
+  form.setAttribute('aria-busy', String(sending));
 }
 
-function renderModels(preferred) {
-  const options = models.map(model => {
-    const option = new Option(model.available ? model.label : `${model.label} (unavailable)`, model.id);
-    option.disabled = !model.available;
-    return option;
+function modelOption(model) {
+  const label = model.label === model.id ? model.id : `${model.label} · ${model.id}`;
+  let suffix = '';
+  if (!model.chat) suffix = ' (non-chat)';
+  else if (!model.available) suffix = ' (unavailable)';
+  const option = new Option(label + suffix, modelValue(model));
+  option.disabled = !selectable(model);
+  return option;
+}
+
+function renderModels() {
+  const query = modelSearch.value.trim().toLowerCase();
+  const terms = query.split(/\s+/);
+  const matching = models.filter((model) => {
+    const description = `${providerNames[model.provider]} ${model.id} ${model.label}`.toLowerCase();
+    return terms.every((term) => description.includes(term));
   });
-  modelSelect.replaceChildren(...options);
-  const available = models.filter(model => model.available);
-  modelSelect.value = available.find(model => model.id === readPreference(modelKey))?.id
-    ?? available.find(model => model.id === preferred)?.id
-    ?? available[0]?.id
-    ?? '';
-  renderModelInfo();
-}
+  const current = selectedModel();
+  const groups = [];
 
-function renderTranscript(turns) {
-  const fragment = document.createDocumentFragment();
-  for (const turn of turns) {
-    const entry = document.createElement('article');
-    entry.className = 'turn';
-    if (turn.action) {
-      const player = textElement('p', '', 'player-action');
-      player.append(textElement('span', 'Your action', 'entry-label'), document.createTextNode(turn.action));
-      entry.append(player);
-    }
-    const narration = textElement('div', '', 'narration');
-    narration.append(textElement('span', 'Game master', 'entry-label'));
-    for (const paragraph of turn.narration.split(/\n\s*\n/)) {
-      if (paragraph.trim()) narration.append(textElement('p', paragraph.trim()));
-    }
-    entry.append(narration);
-    fragment.append(entry);
+  if (current && !matching.includes(current)) {
+    const group = document.createElement('optgroup');
+    group.label = 'Current selection';
+    group.append(modelOption(current));
+    groups.push(group);
   }
-  log.replaceChildren(fragment);
-  log.setAttribute('aria-busy', 'false');
-  log.scrollTop = log.scrollHeight;
+
+  for (const [provider, label] of Object.entries(providerNames)) {
+    const entries = matching.filter((model) => model.provider === provider);
+    if (!entries.length) continue;
+    const group = document.createElement('optgroup');
+    group.label = label;
+    group.append(...entries.map(modelOption));
+    groups.push(group);
+  }
+
+  if (!current) {
+    const placeholder = loadingModels ? 'Loading models…' : 'No chat model available';
+    groups.unshift(new Option(placeholder, ''));
+  }
+
+  modelSelect.replaceChildren(...groups);
+  modelSelect.value = current ? modelValue(current) : '';
+  modelSelect.disabled = loadingModels || !current;
+  modelSearch.disabled = loadingModels || !models.length;
+  const count = matching.filter(selectable).length;
+  if (query) {
+    modelStatus.textContent = count === 0 ? 'No matching chat models' :
+      `${count} matching chat ${count === 1 ? 'model' : 'models'}`;
+  } else {
+    modelStatus.textContent = current ? `${providerNames[current.provider]} · ${current.id}` : '';
+  }
+  updateControls();
 }
 
-function renderSuggestions(items) {
-  suggestions.replaceChildren(...items.map(suggestion => {
-    const button = textElement('button', suggestion, 'suggestion');
-    button.type = 'button';
-    button.addEventListener('click', () => {
-      actionInput.value = suggestion;
-      updateControls();
-      actionInput.focus();
-    });
-    return button;
-  }));
-  suggestions.hidden = items.length === 0;
-}
-
-function renderJournalList(key, items, emptyText, format) {
-  const rows = items.map(item => {
-    const { title, detail, status } = format(item);
-    const row = document.createElement('li');
-    if (title) {
-      const heading = textElement('div', '', 'journal-item-heading');
-      heading.append(textElement('strong', title));
-      if (status) heading.append(textElement('span', status, 'journal-status'));
-      row.append(heading);
-    }
-    if (detail) row.append(textElement('p', detail));
-    return row;
+function showCatalogErrors(errors) {
+  const items = errors.map((message) => {
+    const item = document.createElement('li');
+    item.textContent = message;
+    return item;
   });
-  element(`${key}-count`).textContent = String(items.length);
-  element(key).replaceChildren(...(rows.length ? rows : [textElement('li', emptyText, 'empty-journal')]));
+  catalogErrors.replaceChildren(...items);
+  catalogErrors.hidden = !items.length;
+  reloadModels.hidden = !items.length && models.some(selectable);
 }
 
-function renderGame(value) {
-  game = value;
-  const lastTurn = game.turns.at(-1);
-  const turnCounter = element('turn-counter');
-  element('scene-name').textContent = game.scene.name;
-  element('scene-detail').textContent = game.scene.detail;
-  turnCounter.textContent = lastTurn?.number ? `Turn ${lastTurn.number}` : 'Opening scene';
-  turnCounter.hidden = false;
-  renderTranscript(game.turns);
-  renderSuggestions(lastTurn?.suggestions ?? []);
-  renderJournalList('threads', game.threads, 'No story threads yet.', item => ({ title: item.title, detail: item.detail, status: item.status }));
-  renderJournalList('facts', game.facts, 'No confirmed facts yet.', item => ({ detail: item.text }));
-  renderJournalList('claims', game.claims, 'No rumors heard yet.', item => ({ title: item.speaker, detail: item.text }));
-  renderJournalList('cast', game.cast, 'No one met yet.', item => ({ title: item.name, detail: item.detail }));
-  renderJournalList('inventory', game.inventory, 'You are carrying nothing.', item => ({ title: item.name, detail: item.detail }));
-  element('save-status').textContent = savePreference(saveKey, game.id)
-    ? 'Campaign saved · Resumes in this browser'
-    : 'Campaign saved · Browser storage unavailable';
-}
+async function loadModels() {
+  loadingModels = true;
+  reloadModels.disabled = true;
+  renderModels();
 
-async function createGame() {
-  const result = await request('/api/games', {});
-  pendingTurn = undefined;
-  actionInput.value = '';
-  renderGame(result.game);
-}
-
-async function initialize() {
-  if (busy) return;
-  busy = true;
-  retryLoad.hidden = true;
-  updateControls();
-  setFeedback();
-  log.setAttribute('aria-busy', 'true');
-  log.replaceChildren(textElement('p', 'Loading the campaign…', 'empty-message'));
   try {
-    const config = await request('/api/models');
-    models = config.models;
-    renderModels(config.defaultModel);
-    const savedId = readPreference(saveKey);
-    if (savedId) {
-      try {
-        renderGame((await request(`/api/games/${encodeURIComponent(savedId)}`)).game);
-        return;
-      } catch (error) {
-        if (error.status !== 404) throw error;
-      }
+    const data = await request('/api/models');
+    if (!Array.isArray(data.models)) throw new Error('The server returned an invalid model list.');
+    models = data.models.filter((model) => Object.hasOwn(providerNames, model.provider));
+
+    if (!selectedModel()) {
+      const first = models.find(selectable);
+      selectedKey = first ? modelValue(first) : '';
     }
-    await createGame();
+
+    const errors = Object.entries(providerNames).flatMap(([provider, label]) =>
+      data.errors?.[provider] ? [`${label}: ${data.errors[provider]}`] : []);
+    showCatalogErrors(errors);
   } catch (error) {
-    log.setAttribute('aria-busy', 'false');
-    log.replaceChildren(textElement('p', 'The campaign could not be loaded.', 'empty-message'));
-    setFeedback(error.message, 'error');
-    retryLoad.hidden = false;
+    showCatalogErrors([error.message]);
   } finally {
-    busy = false;
-    updateControls();
+    loadingModels = false;
+    reloadModels.disabled = false;
+    if (!models.some(selectable)) settings.open = true;
+    renderModels();
   }
 }
 
-async function startNewGame() {
-  if (busy) return;
-  busy = true;
-  updateControls();
-  setFeedback('Starting a new campaign…');
-  try {
-    await createGame();
-    setFeedback();
-    retryLoad.hidden = true;
-    window.scrollTo(0, 0);
-  } catch (error) {
-    setFeedback(error.message, 'error');
-  } finally {
-    busy = false;
-    updateControls();
-  }
+function showChatError(message = '') {
+  chatError.textContent = message;
 }
 
-function createRequestId() {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+function appendMessage(message) {
+  const entry = document.createElement('article');
+  entry.className = 'message';
+  entry.dataset.role = message.role;
+
+  const speaker = document.createElement('h3');
+  speaker.textContent = message.role === 'user' ? 'You' : 'Assistant';
+  const body = document.createElement('p');
+  body.textContent = message.content;
+
+  entry.append(speaker, body);
+  emptyState.hidden = true;
+  transcript.append(entry);
+  transcript.scrollTop = entry.offsetTop - 24;
+  return entry;
 }
 
-async function submitAction(event) {
-  event.preventDefault();
-  const action = actionInput.value.trim();
-  const model = selectedModel();
-  if (busy || !game || !model || !action) return;
-  const path = `/api/games/${encodeURIComponent(game.id)}`;
-  if (!pendingTurn || pendingTurn.revision !== game.revision || pendingTurn.action !== action || pendingTurn.model !== model.id) {
-    pendingTurn = { action, model: model.id, revision: game.revision, requestId: createRequestId() };
-  }
-  busy = true;
-  updateControls();
-  setFeedback('The game master is writing…');
-  try {
-    const result = await request(`${path}/turns`, pendingTurn);
-    actionInput.value = '';
-    pendingTurn = undefined;
-    renderGame(result.game);
-    setFeedback();
-  } catch (error) {
-    setFeedback(error.message, 'error');
-    if (error.code === 'revision_conflict') {
-      try {
-        renderGame((await request(path)).game);
-        setFeedback('The latest turn is loaded. Your action is still in the composer.', 'error');
-      } catch {
-        setFeedback('The campaign could not be refreshed. Reload this page to try again.', 'error');
-      }
-    }
-  } finally {
-    busy = false;
-    updateControls();
-  }
-}
-
-retryLoad.addEventListener('click', initialize);
+modelSearch.addEventListener('input', renderModels);
 modelSelect.addEventListener('change', () => {
-  savePreference(modelKey, modelSelect.value);
-  renderModelInfo();
-  updateControls();
+  selectedKey = modelSelect.value;
+  savePreference(modelKey, selectedKey);
+  renderModels();
 });
-newGameButton.addEventListener('click', () => {
-  if (!game) {
-    startNewGame();
-    return;
-  }
-  newGameDialog.returnValue = '';
-  newGameDialog.showModal();
-});
-newGameDialog.addEventListener('close', () => {
-  if (newGameDialog.returnValue === 'start') startNewGame();
-});
-actionInput.addEventListener('input', updateControls);
-actionInput.addEventListener('keydown', event => {
-  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+reloadModels.addEventListener('click', loadModels);
+
+systemPrompt.value = readPreference(promptKey) ?? '';
+systemPrompt.addEventListener('input', () => savePreference(promptKey, systemPrompt.value));
+
+chatInput.addEventListener('input', updateControls);
+chatInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
     event.preventDefault();
-    if (!actionButton.disabled) form.requestSubmit();
+    if (!sendMessage.disabled) form.requestSubmit();
   }
 });
-form.addEventListener('submit', submitAction);
-initialize();
+
+newChat.addEventListener('click', () => {
+  messages = [];
+  transcript.replaceChildren(emptyState);
+  emptyState.hidden = false;
+  chatInput.value = '';
+  chatStatus.textContent = 'New chat started.';
+  showChatError();
+  updateControls();
+  chatInput.focus();
+});
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const model = selectedModel();
+  const draft = chatInput.value;
+  const content = draft.trim();
+  if (!model || !content || sending) return;
+
+  const userMessage = { role: 'user', content };
+  const pendingEntry = appendMessage(userMessage);
+  chatInput.value = '';
+  sending = true;
+  chatStatus.textContent = 'Waiting for a response.';
+  showChatError();
+  updateControls();
+
+  try {
+    const data = await request('/api/chat', {
+      provider: model.provider,
+      model: model.id,
+      system: systemPrompt.value,
+      messages: [...messages, userMessage],
+    });
+    if (typeof data.message !== 'string' || !data.message.trim()) {
+      throw new Error('The model returned an empty reply.');
+    }
+    const reply = { role: 'assistant', content: data.message };
+    messages.push(userMessage, reply);
+    appendMessage(reply);
+  } catch (error) {
+    pendingEntry.remove();
+    emptyState.hidden = messages.length > 0;
+    chatInput.value = draft;
+    showChatError(error.message);
+  } finally {
+    sending = false;
+    chatStatus.textContent = '';
+    updateControls();
+  }
+});
+
+settings.open = !window.matchMedia('(max-width: 720px)').matches;
+loadModels();

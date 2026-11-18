@@ -1,11 +1,8 @@
 {
-  "name": "bellwether-rpg",
+  "name": "harbinger",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
-  "scripts": {
-    "start": "node server.mjs",
-    "eval": "node evaluate.mjs"
-  }
+  "scripts": { "start": "node server.mjs" }
 }

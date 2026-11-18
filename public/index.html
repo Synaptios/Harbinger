@@ -3,108 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f1519">
-  <title>Bellwether | A narrative RPG</title>
+  <meta name="theme-color" content="#f6f7f4">
+  <title>Harbinger</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
-      <a class="wordmark" href="#top" aria-label="Bellwether, back to top">
-        <span class="wordmark-emblem" aria-hidden="true">✦</span>
-        <span>Bellwether</span>
-      </a>
-      <div class="game-controls">
-        <label class="model-control" for="model-select">
-          <span class="model-label">Story model</span>
-          <select id="model-select" aria-describedby="model-description" disabled>
-            <option>Loading…</option>
-          </select>
-        </label>
-        <button type="button" class="quiet-button" id="new-game" disabled>
-          <span aria-hidden="true">+</span> New game
-        </button>
-      </div>
+      <h1>Harbinger</h1>
+      <button type="button" class="secondary-button" id="new-chat" disabled>New chat</button>
     </div>
   </header>
-  <main class="shell" id="top">
-    <section class="scene-banner" aria-labelledby="scene-name">
-      <div class="scene-content">
-        <div class="scene-category"><span aria-hidden="true"></span> Current scene</div>
-        <h1 id="scene-name">Floodgate Quay</h1>
-        <p id="scene-detail">Bellwether, a salt-marsh ferry town</p>
+
+  <main class="workspace">
+    <aside aria-label="Chat settings">
+      <details class="settings" id="settings" open>
+        <summary>Settings</summary>
+        <div class="settings-content">
+          <div class="setting">
+            <label for="model-select">Model</label>
+            <input id="model-search" type="search" aria-label="Filter models" aria-controls="model-select"
+                   placeholder="Search models" autocomplete="off" disabled>
+            <select id="model-select" aria-describedby="model-status" disabled>
+              <option value="">Loading models…</option>
+            </select>
+            <p class="hint" id="model-status" role="status"></p>
+            <ul id="catalog-errors" class="catalog-errors" aria-live="polite" hidden></ul>
+            <button type="button" class="text-button" id="reload-models" hidden>Retry loading models</button>
+          </div>
+          <div class="setting">
+            <label for="system-prompt">System prompt</label>
+            <textarea id="system-prompt" rows="5" aria-describedby="prompt-hint"
+                      placeholder="Optional instructions for the model"></textarea>
+            <p class="hint" id="prompt-hint">Changes apply starting with your next message.</p>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    <section class="chat" aria-label="Chat">
+      <span id="chat-status" class="visually-hidden" role="status"></span>
+      <div class="transcript" id="transcript" role="log" aria-label="Conversation" tabindex="0">
+        <div class="empty-state" id="empty-state">
+          <h2>Start a conversation</h2>
+        </div>
       </div>
+      <form class="composer" id="chat-form">
+        <label class="visually-hidden" for="chat-input">Message</label>
+        <textarea id="chat-input" rows="2" aria-describedby="key-hint"
+                  placeholder="Write a message…" required disabled></textarea>
+        <div class="composer-controls">
+          <p class="hint" id="key-hint"><kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line</p>
+          <button class="send-button" type="submit" id="send-message" disabled>Send</button>
+        </div>
+        <p class="chat-error" id="chat-error" role="alert"></p>
+      </form>
     </section>
-    <div class="game-layout">
-      <section class="story" aria-labelledby="story-heading">
-        <div class="section-heading">
-          <h2 id="story-heading">The story</h2>
-          <a class="journal-link" href="#journal-heading">Open journal <span aria-hidden="true">↓</span></a>
-          <span class="turn-counter" id="turn-counter" hidden></span>
-        </div>
-        <div class="turn-log" id="turn-log" role="log" aria-label="Story transcript" tabindex="0" aria-busy="true">
-          <p class="empty-message">Loading the campaign…</p>
-        </div>
-        <form class="composer" id="action-form" aria-busy="false">
-          <div class="suggestions" id="suggestions" aria-label="Suggested actions" hidden></div>
-          <div class="action-field">
-            <label for="action">What do you do?</label>
-            <textarea id="action" name="action" rows="2" maxlength="1500" placeholder="Speak to someone, investigate, or try something else…" autocomplete="off" required disabled></textarea>
-          </div>
-          <div class="composer-footer">
-            <div class="composer-feedback">
-              <p class="message" id="action-message" role="status" aria-live="polite"></p>
-              <p class="key-hint" id="key-hint"><kbd>Enter</kbd> to act · <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line</p>
-              <button type="button" class="text-button" id="retry-load" hidden>Retry loading</button>
-            </div>
-            <button class="act-button" id="submit-action" type="submit" disabled>Take action <span aria-hidden="true">→</span></button>
-          </div>
-        </form>
-      </section>
-      <aside class="journal" aria-labelledby="journal-heading">
-        <div class="section-heading">
-          <h2 id="journal-heading" tabindex="-1">Campaign journal</h2>
-          <span class="journal-mark" aria-hidden="true">✧</span>
-        </div>
-        <div class="journal-content">
-          <details open>
-            <summary>Story threads <span class="journal-count" id="threads-count"></span></summary>
-            <ul class="journal-list" id="threads"></ul>
-          </details>
-          <details open>
-            <summary>Known facts <span class="journal-count" id="facts-count"></span></summary>
-            <ul class="journal-list" id="facts"></ul>
-          </details>
-          <details open>
-            <summary>Rumors <span class="journal-count" id="claims-count"></span></summary>
-            <ul class="journal-list" id="claims"></ul>
-          </details>
-          <details>
-            <summary>People <span class="journal-count" id="cast-count"></span></summary>
-            <ul class="journal-list" id="cast"></ul>
-          </details>
-          <details>
-            <summary>Inventory <span class="journal-count" id="inventory-count"></span></summary>
-            <ul class="journal-list" id="inventory"></ul>
-          </details>
-        </div>
-      </aside>
-    </div>
-    <footer class="site-footer">
-      <span id="save-status"></span>
-      <span id="model-description"></span>
-    </footer>
   </main>
-  <dialog id="new-game-dialog" aria-labelledby="new-game-title">
-    <form method="dialog" class="new-game-content">
-      <h2 id="new-game-title">Start a new campaign?</h2>
-      <p>This browser will open the new campaign the next time you visit.</p>
-      <div class="dialog-actions">
-        <button class="quiet-button" type="submit" value="cancel" autofocus>Cancel</button>
-        <button class="act-button" type="submit" value="start">Start new game <span aria-hidden="true">→</span></button>
-      </div>
-    </form>
-  </dialog>
 </body>
 </html>
