@@ -1,5 +1,0 @@
-data/
-eval-results/
-.credentials
-.env
-*.tmp
