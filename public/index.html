@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Harbinger · ReverieMem</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="shell header-inner">
+        <div>
+          <h1>Harbinger</h1>
+          <p>ReverieMem story chat</p>
+        </div>
+        <p class="story-title" id="header-story"></p>
+      </div>
+    </header>
+
+    <main class="shell workspace">
+      <nav class="tabs" role="tablist" aria-label="Workspace">
+        <button id="tab-chat" type="button" role="tab" aria-selected="true" aria-controls="panel-chat">Chat</button>
+        <button id="tab-story" type="button" role="tab" aria-selected="false" aria-controls="panel-story" tabindex="-1">Story</button>
+        <button id="tab-source" type="button" role="tab" aria-selected="false" aria-controls="panel-source" tabindex="-1">Source-to-Memory</button>
+        <button id="tab-reasoning" type="button" role="tab" aria-selected="false" aria-controls="panel-reasoning" tabindex="-1">Reasoning</button>
+        <button id="tab-fusion" type="button" role="tab" aria-selected="false" aria-controls="panel-fusion" tabindex="-1">Fusion</button>
+      </nav>
+
+      <div class="app-notice" id="bootstrap-notice">
+        <p id="bootstrap-status" role="status">Loading the story…</p>
+        <button id="retry-bootstrap" type="button" hidden>Try again</button>
+      </div>
+
+      <section id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" tabindex="0">
+        <div class="layout chat-layout">
+          <aside class="card control-card perspective">
+            <h2>Perspective</h2>
+            <label for="chat-character">Character</label>
+            <select id="chat-character" disabled></select>
+            <label for="chat-event">As of this event</label>
+            <select id="chat-event" disabled></select>
+            <p class="hint" id="event-context"></p>
+            <button id="new-chat" class="secondary" type="button" disabled>New conversation</button>
+          </aside>
+
+          <section class="card chat-card" aria-label="Conversation">
+            <div class="chat-heading">
+              <h2 id="chat-heading">Conversation</h2>
+              <p id="chat-subheading"></p>
+            </div>
+            <div class="transcript" id="transcript" role="log" aria-label="Messages" aria-live="polite" tabindex="0">
+              <p class="empty-transcript" id="empty-transcript">Choose a character and ask about the story.</p>
+            </div>
+            <form class="composer" id="composer">
+              <label class="sr-only" for="message">Message</label>
+              <textarea id="message" rows="2" maxlength="6000" placeholder="Write a message…" aria-describedby="compose-hint" disabled></textarea>
+              <div class="compose-actions">
+                <p class="hint" id="compose-hint">Enter to send · Shift+Enter for a new line</p>
+                <button class="primary" id="send-message" type="submit" disabled>Send</button>
+              </div>
+              <p class="notice" id="chat-status" role="status" hidden></p>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-story" role="tabpanel" aria-labelledby="tab-story" tabindex="0" hidden>
+        <div class="layout story-layout">
+          <aside class="card control-card">
+            <h2>Character memory</h2>
+            <label for="memory-character">Character</label>
+            <select id="memory-character" disabled></select>
+            <dl class="memory-counts" id="memory-counts"></dl>
+            <p class="hint">Building memory runs the Source-to-Memory steps and replaces this character’s current memory.</p>
+            <button id="build-memory" class="primary" type="button" disabled>Build memory</button>
+            <p class="notice" id="build-status" role="status" hidden></p>
+          </aside>
+
+          <section class="card story-card" aria-labelledby="story-heading">
+            <div class="story-heading">
+              <div>
+                <h2 id="story-heading">Story</h2>
+                <p class="hint" id="story-source"></p>
+              </div>
+              <button id="download-story" class="secondary" type="button" disabled>Download story JSON</button>
+            </div>
+            <div id="story-content"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-source" role="tabpanel" aria-labelledby="tab-source" tabindex="0" hidden>
+        <div class="phase-heading">
+          <h2>Source-to-Memory</h2>
+          <p>Models and prompts used when you build character memory from the story.</p>
+        </div>
+        <div class="stage-list" id="stages-source"></div>
+      </section>
+
+      <section id="panel-reasoning" role="tabpanel" aria-labelledby="tab-reasoning" tabindex="0" hidden>
+        <div class="phase-heading">
+          <h2>Reasoning</h2>
+          <p>Models and prompts used to find and verify memories for each message.</p>
+        </div>
+        <div class="stage-list" id="stages-reasoning"></div>
+      </section>
+
+      <section id="panel-fusion" role="tabpanel" aria-labelledby="tab-fusion" tabindex="0" hidden>
+        <div class="phase-heading">
+          <h2>Fusion</h2>
+          <p>Models and prompts used to turn retrieved memories into an in-character reply.</p>
+        </div>
+        <div class="stage-list" id="stages-fusion"></div>
+      </section>
+
+      <div class="catalog" id="catalog" hidden>
+        <p class="hint" id="catalog-status" role="status">Loading model choices…</p>
+        <button class="text-button" id="reload-models" type="button" disabled>Reload models</button>
+      </div>
+      <p class="notice" id="settings-status" role="status" hidden></p>
+      <datalist id="generation-models"></datalist>
+      <datalist id="embedding-models"></datalist>
+    </main>
+  </body>
+</html>

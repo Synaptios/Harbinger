@@ -1,0 +1,6 @@
+/.credentials
+/.env
+/.env.local
+/app-state/
+/node_modules/
+/.playwright-mcp/

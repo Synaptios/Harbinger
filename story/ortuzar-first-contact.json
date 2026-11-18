@@ -1,0 +1,1994 @@
+{
+  "title": "The Ortuzar-Prototype Continuity",
+  "source": {
+    "filename": "Master_Story_Bible_Ortuzar_Prototype_First_Contact.pdf"
+  },
+  "characters": [
+    {
+      "id": "angela-ortuzar",
+      "name": "Angela Ortuzar",
+      "aliases": [
+        "Ascendant"
+      ],
+      "summary": "Approximately eighteen. The daughter of Diana and Diego, Helena's twin, and older sister to Leon and Adrian. Her failed evaluation and attack on Clark cost her trust and flight privileges. Restitution and sustained work earned her full Young Justice membership and independent flight. Her telekinesis and vector control give her tactical options against stronger opponents. At the quarry she admits she enjoyed the fight before recognizing Kara's connection to Clark.",
+      "sourcePages": [
+        7,
+        11,
+        39,
+        40,
+        41,
+        43,
+        64,
+        69,
+        71
+      ]
+    },
+    {
+      "id": "kara",
+      "name": "Kara",
+      "aliases": [],
+      "summary": "A newly arrived Kryptonian survivor and Clark's cousin. Grief and edited footage of the Metropolis attack lead her to seek out and attack Angela. She has greater raw strength and speed than Angela in their encounter. Her first contact with Young Justice ends with medical care being arranged and her asking for Angela's account. She has yet to join either team.",
+      "sourcePages": [
+        21,
+        22,
+        42,
+        46,
+        64,
+        70,
+        71,
+        72,
+        73
+      ]
+    },
+    {
+      "id": "clark-kent",
+      "name": "Clark Kent",
+      "aliases": [
+        "Superman",
+        "Kal-El"
+      ],
+      "summary": "Kryptonian journalist, Justice League hero, Kara's cousin, and close family friend of the Ortuzars. He shielded civilians and refused to fight Angela as an enemy in Metropolis. He later forgave her and rebuilt their uncle-niece relationship. At the quarry he tells Kara what the footage omitted.",
+      "sourcePages": [
+        13,
+        24,
+        40,
+        42,
+        46,
+        51,
+        65,
+        66,
+        69,
+        70,
+        71
+      ]
+    },
+    {
+      "id": "diana-of-themyscira",
+      "name": "Diana of Themyscira",
+      "aliases": [
+        "Wonder Woman"
+      ],
+      "summary": "Immortal Amazon, senior Justice League member, wife of Diego, mother of Angela, Helena, Leon and Adrian, and mentor to Cassie. She once withheld an embrace after Angela harmed her siblings. At the quarry she asks permission to hold Angela while affirming that they still need to discuss the fight.",
+      "sourcePages": [
+        38,
+        39,
+        43,
+        44,
+        50,
+        71,
+        72
+      ]
+    },
+    {
+      "id": "diego-ortuzar",
+      "name": "Diego Ortuzar",
+      "aliases": [
+        "The Archon"
+      ],
+      "summary": "Ancient Elvhen psion, former captive and rebel, Diana's husband, father of four, and League ally. He defeated a weakened Darkseid inside the Apokolips anchor field. Lazarus secretly used his stolen cells to create the Prototype. Diego reaches the quarry with Diana and defers to Angela's signal and Kaldur's command.",
+      "sourcePages": [
+        13,
+        37,
+        38,
+        44,
+        53,
+        71,
+        72
+      ]
+    },
+    {
+      "id": "helena-ortuzar",
+      "name": "Helena Ortuzar",
+      "aliases": [],
+      "summary": "Angela's twin sister and longtime sparring partner. Angela attempted a coercive psionic override on her during the failed evaluation. Helena has rebuilt closeness with her sister while insisting on her own judgment and boundaries. She has enhanced physiology and a congruence field.",
+      "sourcePages": [
+        39,
+        44,
+        45,
+        51
+      ]
+    },
+    {
+      "id": "leon-ortuzar",
+      "name": "Leon Ortuzar",
+      "aliases": [],
+      "summary": "The younger brother of Angela and Helena, Adrian's fraternal twin, and a developing hero and diplomat. He intervened for Helena during Angela's failed evaluation and was attacked. He has forgiven Angela while preserving his right to refuse psychic contact. His pacifying field can reduce escalation. He is single at the handoff.",
+      "sourcePages": [
+        34,
+        38,
+        39,
+        45,
+        51,
+        53
+      ]
+    },
+    {
+      "id": "adrian-ortuzar",
+      "name": "Adrian Ortuzar",
+      "aliases": [],
+      "summary": "Leon's fraternal twin and the technically minded younger brother of Angela and Helena. He intervened during the failed evaluation and was attacked. He helps interpret Angela's psionic and flight data with her knowledge and has short-range spatial transposition abilities. He is single at the handoff.",
+      "sourcePages": [
+        34,
+        38,
+        39,
+        45,
+        51,
+        53
+      ]
+    },
+    {
+      "id": "kaldur-ahm",
+      "name": "Kaldur'ahm",
+      "aliases": [
+        "Kaldur"
+      ],
+      "summary": "Atlantean hero and Young Justice's operational leader. He supported Angela's full membership after sustained evidence. He takes charge at the quarry, coordinates release and triage, orders separate debriefs, and grants Angela's voluntary medical stand-down.",
+      "sourcePages": [
+        25,
+        39,
+        41,
+        47,
+        52,
+        66,
+        67,
+        68,
+        69,
+        71,
+        72
+      ]
+    },
+    {
+      "id": "cassie-sandsmark",
+      "name": "Cassie Sandsmark",
+      "aliases": [
+        "Wonder Girl"
+      ],
+      "summary": "Diana's protégé and Angela's close friend on Young Justice. At the quarry she prepares to intervene if needed and asks before supporting Angela's injured body. She can be protective of Angela and troubled by her admission at the same time.",
+      "sourcePages": [
+        46,
+        47,
+        52,
+        66,
+        67,
+        68,
+        69
+      ]
+    },
+    {
+      "id": "m-gann-m-orzz",
+      "name": "M'gann M'orzz",
+      "aliases": [],
+      "summary": "Martian telepath and Young Justice member. She survived the Reaper Heart's attempt to use her telepathy and helped destroy it. At the quarry she checks for distress and active hostility, declines to enter either mind without consent, and coordinates separate medical routes.",
+      "sourcePages": [
+        41,
+        49,
+        66,
+        67,
+        69,
+        72
+      ]
+    },
+    {
+      "id": "artemis-crock",
+      "name": "Artemis Crock",
+      "aliases": [],
+      "summary": "Young Justice archer and infiltrator. She secures the quarry perimeter and retrieves Kara's damaged device with the edited Metropolis video still displayed.",
+      "sourcePages": [
+        49,
+        66,
+        67,
+        68,
+        71,
+        72
+      ]
+    },
+    {
+      "id": "jaime-reyes",
+      "name": "Jaime Reyes",
+      "aliases": [
+        "Blue Beetle"
+      ],
+      "summary": "Young Justice member bonded to the Scarab. He scans both combatants, takes part in communications at the quarry, and calls for transport. His technical role includes reconstructing the communications failure.",
+      "sourcePages": [
+        22,
+        49,
+        66,
+        67,
+        68,
+        71,
+        72
+      ]
+    },
+    {
+      "id": "victor-stone",
+      "name": "Victor Stone",
+      "aliases": [
+        "Cyborg"
+      ],
+      "summary": "Justice League systems and medical specialist. He helped attack the Apokolips anchor controls. Angela requests medical clearance from him and review of her suit telemetry at the quarry.",
+      "sourcePages": [
+        38,
+        49,
+        50,
+        71
+      ]
+    },
+    {
+      "id": "dinah-lance",
+      "name": "Dinah Lance",
+      "aliases": [
+        "Black Canary"
+      ],
+      "summary": "Justice League combat instructor and Young Justice counselor. She mentored Angela during supervised repair. An independent clinician handles Angela's formal long-term treatment.",
+      "sourcePages": [
+        40,
+        47
+      ]
+    },
+    {
+      "id": "bruce-wayne",
+      "name": "Bruce Wayne",
+      "aliases": [
+        "Batman"
+      ],
+      "summary": "League strategist and uncle figure to Angela. He supported restrictions after her earlier violence and has also crossed privacy boundaries. He is heard briefly over Jaime's restored channel at the quarry.",
+      "sourcePages": [
+        38,
+        47,
+        48,
+        52,
+        71
+      ]
+    },
+    {
+      "id": "j-onn-j-onzz",
+      "name": "J'onn J'onzz",
+      "aliases": [
+        "Martian Manhunter"
+      ],
+      "summary": "Senior Justice League telepath. During the Apokolips anchor crisis he coordinated minds despite interference. His psychic strength places him above Angela.",
+      "sourcePages": [
+        38,
+        50,
+        61
+      ]
+    },
+    {
+      "id": "the-empress",
+      "name": "The Empress",
+      "aliases": [],
+      "summary": "An older alternate Angela raised by the High Evolutionary and shaped into a Tevinter field agent. She attempted to conquer Earth and was defeated by a combined League response that included Angela's intervention. Angela advocated for the supervised redemption agreement now governing her residence, treatment and movement.",
+      "sourcePages": [
+        9,
+        41,
+        48,
+        53,
+        54
+      ]
+    },
+    {
+      "id": "high-evolutionary",
+      "name": "The High Evolutionary",
+      "aliases": [],
+      "summary": "A living alternate Diego and the Empress's father. He offered Angela validation during her consequence period, left the artifact called the Reaper Heart, and issued warnings about Gravemind and Nightmare. His current intentions and the extent of his knowledge remain unclear.",
+      "sourcePages": [
+        9,
+        13,
+        14,
+        40,
+        41,
+        48,
+        53,
+        55,
+        56,
+        59
+      ]
+    },
+    {
+      "id": "the-prototype",
+      "name": "The Prototype",
+      "aliases": [
+        "Asset Zero"
+      ],
+      "summary": "A distinct person created in Lazarus's failed Archon replication program using Diego-derived cells. He is still confined in a hidden facility and has no chosen name. His adaptive body can regenerate, reshape, and imitate the few non-powered people he has consumed, leaving him with fragments of their memories. No League or Young Justice member knows he exists, and he has never met Angela.",
+      "sourcePages": [
+        7,
+        8,
+        13,
+        22,
+        38,
+        39,
+        48,
+        49,
+        53
+      ]
+    },
+    {
+      "id": "darkseid",
+      "name": "Darkseid",
+      "aliases": [],
+      "summary": "Ruler of hostile Apokolips. Diego defeated him after combat and anchor feedback had already weakened him. Apokolips remains active and Darkseid's destruction was never confirmed.",
+      "sourcePages": [
+        11,
+        25,
+        38,
+        55,
+        57
+      ]
+    },
+    {
+      "id": "brainiac-god",
+      "name": "Brainiac God",
+      "aliases": [],
+      "summary": "A collector and archive sovereign active beyond Earth. He seeks to preserve civilizations under his control. His activities are independent of Lazarus and the Prototype's origin.",
+      "sourcePages": [
+        9,
+        13,
+        26,
+        55,
+        57
+      ]
+    },
+    {
+      "id": "gravemind",
+      "name": "Gravemind",
+      "aliases": [],
+      "summary": "An active catastrophe beyond Earth associated with a Diego divergence and collective assimilation. Earth knows the name from the High Evolutionary's warning. The Prototype shares only an indirect connection through the Diego-derived pattern.",
+      "sourcePages": [
+        10,
+        13,
+        27,
+        28,
+        56,
+        57
+      ]
+    },
+    {
+      "id": "nightmare",
+      "name": "Nightmare",
+      "aliases": [],
+      "summary": "An active multiversal catastrophe associated with psychic devastation and identity collapse. It exists elsewhere. Earth's information comes from the High Evolutionary's warning, and no League member has faced it.",
+      "sourcePages": [
+        10,
+        13,
+        28,
+        29,
+        56,
+        57,
+        60
+      ]
+    },
+    {
+      "id": "lazarus-project-staff",
+      "name": "Lazarus containment staff",
+      "aliases": [],
+      "summary": "The unnamed handlers who supervise the Prototype's confinement in the Lazarus black site. Early handlers mistake his silence and lack of psionics for a lack of intelligence.",
+      "sourcePages": [
+        8,
+        13,
+        22,
+        26,
+        38,
+        39,
+        55,
+        56
+      ]
+    },
+    {
+      "id": "lazarus-front-operatives",
+      "name": "Lazarus front operatives",
+      "aliases": [],
+      "summary": "The unnamed members of a Lazarus front organization that obtained a viable sample of Diego's cells in the aftermath of the Apokolips anchor crisis.",
+      "sourcePages": [
+        25,
+        38
+      ]
+    },
+    {
+      "id": "lazarus-replication-researchers",
+      "name": "Lazarus replication researchers",
+      "aliases": [],
+      "summary": "The unnamed Lazarus personnel in charge of attempts to reproduce Diego's physiology and psionic potential. The program produced the Prototype when the original cloning approach failed.",
+      "sourcePages": [
+        8,
+        13,
+        38,
+        39,
+        55
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "earth-prime",
+      "name": "Earth Prime",
+      "summary": "The main Earth of this continuity. Functioning civil institutions coexist with an active Justice League and Young Justice. Nearby dimensional routes make the planet strategically important.",
+      "sourcePages": [
+        22,
+        23,
+        27
+      ]
+    },
+    {
+      "id": "arlathan",
+      "name": "Arlathan",
+      "summary": "An ancient Elvhen civilization with advanced psionics, magic, and memory craft. Its history and the Evanuris form part of the setting for Diego's captivity and rebellion.",
+      "sourcePages": [
+        37,
+        38
+      ]
+    },
+    {
+      "id": "apokolips",
+      "name": "Apokolips",
+      "summary": "Darkseid's hostile realm. Its forces attempted to merge a dimensional anchor with Earth's coordinates and remain active after the failure.",
+      "sourcePages": [
+        25,
+        38,
+        55,
+        56
+      ]
+    },
+    {
+      "id": "apokolips-anchor-scar",
+      "name": "Apokolips anchor scar",
+      "summary": "A monitored dimensional scar in near-Earth space and at several ground sites. It marks the failed merger and the field where Diego defeated the already weakened Darkseid.",
+      "sourcePages": [
+        25,
+        38,
+        60
+      ]
+    },
+    {
+      "id": "tevinter-imperium",
+      "name": "Tevinter Imperium",
+      "summary": "An expansionist extradimensional empire with subject worlds and title-bound agents. Earth has only fragmentary intelligence from Diego, the Empress, records and equipment.",
+      "sourcePages": [
+        9,
+        25,
+        37,
+        55
+      ]
+    },
+    {
+      "id": "minrathous",
+      "name": "Minrathous",
+      "summary": "Tevinter's capital. Earth has incomplete, potentially outdated descriptions from Diego and the Empress. Angela has never visited.",
+      "sourcePages": [
+        25,
+        26,
+        37
+      ]
+    },
+    {
+      "id": "themyscira",
+      "name": "Themyscira",
+      "summary": "Diana's sovereign homeland and the source of the Ortuzar children's Amazon inheritance. It has its own martial, legal, healing, and ritual traditions.",
+      "sourcePages": [
+        24,
+        38
+      ]
+    },
+    {
+      "id": "ortuzar-estate",
+      "name": "Ortuzar estate",
+      "summary": "Home of Diana, Diego and their four children, with libraries, training grounds, medical rooms and secure guest quarters. A secured guest wing is described for the Empress's supervised residence.",
+      "sourcePages": [
+        24,
+        38,
+        54
+      ]
+    },
+    {
+      "id": "young-justice-headquarters",
+      "name": "Young Justice headquarters",
+      "summary": "The team's operational base and shared home, with training, communications, medical, workshop and residential spaces. Angela has a room and also spends time at home.",
+      "sourcePages": [
+        23,
+        41
+      ]
+    },
+    {
+      "id": "watchtower",
+      "name": "Watchtower",
+      "summary": "The League's single orbital headquarters for strategy, diplomacy, communications and medicine.",
+      "sourcePages": [
+        11,
+        23
+      ]
+    },
+    {
+      "id": "hall-of-justice",
+      "name": "Hall of Justice",
+      "summary": "The League's public-facing venue for briefings, diplomacy, memorials and oversight. Angela's formal return was recognized here or at a comparable public ceremony.",
+      "sourcePages": [
+        23
+      ]
+    },
+    {
+      "id": "metropolis",
+      "name": "Metropolis",
+      "summary": "Clark's city, the site of Angela's recorded attack on him and the setting for parts of their later reconciliation.",
+      "sourcePages": [
+        24,
+        40,
+        42,
+        72
+      ]
+    },
+    {
+      "id": "gotham",
+      "name": "Gotham",
+      "summary": "Bruce's city. Its problems bring questions of evidence, institutions and restraint into Angela's orbit.",
+      "sourcePages": [
+        24,
+        25
+      ]
+    },
+    {
+      "id": "atlantis",
+      "name": "Atlantis",
+      "summary": "Kaldur's homeland and a source of Atlantean diplomacy, technology and medicine.",
+      "sourcePages": [
+        25,
+        47
+      ]
+    },
+    {
+      "id": "high-evolutionary-domain",
+      "name": "High Evolutionary's domain",
+      "summary": "A network of mobile labs, dimensional sanctums, and an archive complex that can observe divergent histories. The domain holds evidence about the Empress's upbringing and distant threats.",
+      "sourcePages": [
+        26,
+        55
+      ]
+    },
+    {
+      "id": "lazarus-facility",
+      "name": "Lazarus deep-site facility",
+      "summary": "A concealed black site where Lazarus holds the Prototype. Its exact whereabouts are unspecified. Security relies on layered barriers, restraints and conditioning staff.",
+      "sourcePages": [
+        22,
+        26,
+        38,
+        39,
+        48,
+        55
+      ]
+    },
+    {
+      "id": "brainiac-collection-network",
+      "name": "Brainiac God's collection network",
+      "summary": "An off-world network of probes, archives and collection infrastructure operated by Brainiac God.",
+      "sourcePages": [
+        26,
+        55
+      ]
+    },
+    {
+      "id": "abandoned-quarry",
+      "name": "Abandoned quarry",
+      "summary": "An empty quarry where Kara and Angela's fight ends. Broken limestone, a ruptured water line and a new crater mark the battlefield. Kaldur keeps it intact as an evidence scene.",
+      "sourcePages": [
+        64,
+        65,
+        67,
+        72
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "diego-rebels-against-his-enslavers",
+      "title": "Diego escapes and rebels",
+      "when": "Ancient Elvhen history, before Diego came to Earth",
+      "summary": "Systems of enslavement associated with Tevinter and the Evanuris conditioned and altered Diego to exploit his power. He escaped, rebelled, defeated or killed several Evanuris, and helped break an imperial structure. He sometimes used domination and devastating force himself. Archon began as a leadership title among freed people. Tevinter persisted in altered form.",
+      "locationIds": [
+        "arlathan",
+        "tevinter-imperium"
+      ],
+      "participants": [
+        "diego-ortuzar"
+      ],
+      "sourcePages": [
+        25,
+        37,
+        38,
+        44
+      ],
+      "knowledge": [
+        {
+          "statement": "Diego experienced coercive conditioning and later used domination during his own revolt.",
+          "visibleTo": [
+            "diego-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Diego's personal history, PDF pages 37 and 44."
+        }
+      ]
+    },
+    {
+      "id": "diana-confronts-diego-on-arrival",
+      "title": "Diana confronts Diego on his arrival",
+      "when": "Long before the opening, after Diego's revolt",
+      "summary": "Diego's arrival in the Earth system looked like a possible invasion. Diana confronted him. Adversarial first contact gave way to diplomacy and then intimacy as Diego gave up unilateral rule and accepted limits among people beyond his command.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "diana-of-themyscira",
+        "diego-ortuzar"
+      ],
+      "sourcePages": [
+        38,
+        50
+      ],
+      "knowledge": [
+        {
+          "statement": "Diana confronted Diego when his arrival looked like a threat. Their relationship changed through repeated negotiation and trust.",
+          "visibleTo": [
+            "diana-of-themyscira",
+            "diego-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Both took part in the confrontation and diplomacy, PDF page 38."
+        }
+      ]
+    },
+    {
+      "id": "diana-and-diego-form-a-family",
+      "title": "Diana and Diego marry and form a family",
+      "when": "After a long courtship, before Angela's childhood",
+      "summary": "Diana and Diego married. Angela and Helena were born as twins, followed by their younger brothers Leon and Adrian, who are fraternal twins. The household blended Themysciran, Elvhen and Earth traditions and grew close to League and team members.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "diana-of-themyscira",
+        "diego-ortuzar"
+      ],
+      "sourcePages": [
+        12,
+        24,
+        38,
+        50
+      ],
+      "knowledge": [
+        {
+          "statement": "Diana and Diego married, and their daughters were born before their younger fraternal twin sons.",
+          "visibleTo": [
+            "diana-of-themyscira",
+            "diego-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Their marriage and family history, PDF pages 38 and 50."
+        }
+      ]
+    },
+    {
+      "id": "angela-trains-with-her-family",
+      "title": "Angela trains with her family",
+      "when": "During Angela's childhood, before her evaluation at seventeen",
+      "summary": "Angela trained in combat, flight, and psionic control. Helena became her most frequent sparring partner. Her ambition to lead developed alongside sincere teaching about restraint and frustration at being held to stricter limits than her peers. This training spans her childhood, so its exact overlap with the anchor crisis is unspecified.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "helena-ortuzar",
+        "diana-of-themyscira",
+        "diego-ortuzar"
+      ],
+      "sourcePages": [
+        37,
+        39,
+        43,
+        50,
+        51
+      ],
+      "knowledge": [
+        {
+          "statement": "Helena was Angela's regular sparring partner during childhood training.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "helena-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Historical timeline and their twin relationship, PDF pages 39 and 51."
+        },
+        {
+          "statement": "Angela was taught the ethics of domination and trained to control how much force she used.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "diana-of-themyscira",
+            "diego-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Family training and parental mentorship, PDF pages 39, 43 and 50."
+        }
+      ]
+    },
+    {
+      "id": "apokolips-anchor-merger-fails",
+      "title": "The League stops the Apokolips anchor merger",
+      "when": "Several years before the opening",
+      "summary": "Apokolips tried to partially merge its coordinates with Earth's. The League defended population centers, attacked anchor controls, and coordinated under interference. Diego entered the unstable anchor field, defeated Darkseid after combat and feedback had weakened him, and severed the bind. Diego was badly injured. The scar is monitored, and Apokolips remains hostile.",
+      "locationIds": [
+        "earth-prime",
+        "apokolips-anchor-scar"
+      ],
+      "participants": [
+        "clark-kent",
+        "diana-of-themyscira",
+        "bruce-wayne",
+        "victor-stone",
+        "j-onn-j-onzz",
+        "diego-ortuzar",
+        "darkseid"
+      ],
+      "sourcePages": [
+        11,
+        13,
+        25,
+        38,
+        55,
+        57
+      ],
+      "knowledge": [
+        {
+          "statement": "Darkseid was already weakened when Diego fought him inside the anchor and broke the merger.",
+          "visibleTo": [
+            "diego-ortuzar",
+            "darkseid"
+          ],
+          "route": "direct",
+          "evidence": "Both fought in the anchor field, PDF page 38."
+        },
+        {
+          "statement": "During the crisis, the League divided civilian protection, technical disruption, and psychic coordination among its responders.",
+          "visibleTo": [
+            "clark-kent",
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "diego-ortuzar"
+          ],
+          "route": "organization",
+          "evidence": "The League response and division of roles, PDF page 38."
+        },
+        {
+          "statement": "Diego's cells were exposed during the anchor crisis and its aftermath.",
+          "visibleTo": [
+            "clark-kent",
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "diego-ortuzar"
+          ],
+          "route": "organization",
+          "evidence": "The League's established knowledge stops at exposure, PDF page 13."
+        }
+      ]
+    },
+    {
+      "id": "lazarus-acquires-diegos-cells",
+      "title": "A Lazarus front obtains Diego's cells",
+      "when": "During treatment and salvage after the anchor crisis",
+      "summary": "A Lazarus front obtained contaminated medical waste and a viable cellular sample from Diego. No League audit uncovered the theft. The salvage site and the exact recovery procedure are unspecified.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "lazarus-front-operatives"
+      ],
+      "sourcePages": [
+        8,
+        13,
+        25,
+        38,
+        60
+      ],
+      "knowledge": [
+        {
+          "statement": "A Lazarus front recovered a viable cellular sample from Diego after the anchor event.",
+          "visibleTo": [
+            "lazarus-front-operatives"
+          ],
+          "route": "direct",
+          "evidence": "The operation is described on PDF pages 8 and 38."
+        }
+      ]
+    },
+    {
+      "id": "lazarus-begins-archon-replication",
+      "title": "Lazarus begins its Archon replication program",
+      "when": "Begins after the anchor crisis and spans several years. Its milestones have no published dates.",
+      "summary": "Lazarus tried to reproduce Diego's body, psionics and survivability. Successive attempts failed to reproduce a sustainable person with his abilities. The researchers changed direction toward an adaptive derivative. The training and consequence periods on Earth proceeded in parallel with this hidden program.",
+      "locationIds": [],
+      "participants": [
+        "lazarus-replication-researchers"
+      ],
+      "sourcePages": [
+        8,
+        13,
+        26,
+        38,
+        39,
+        55
+      ],
+      "knowledge": [
+        {
+          "statement": "The program uses Diego-derived tissue with the goal of reproducing Archon traits, and its early cloning attempts failed.",
+          "visibleTo": [
+            "lazarus-replication-researchers"
+          ],
+          "route": "organization",
+          "evidence": "The replication program's mandate and failures, PDF pages 8 and 38."
+        }
+      ]
+    },
+    {
+      "id": "lazarus-creates-the-prototype",
+      "title": "The Prototype emerges from the Lazarus program",
+      "when": "During the years of Lazarus research, before the opening. Exact date unknown.",
+      "summary": "Lazarus's altered program produces a distinct adaptive person with Diego-derived cells. Testing and containment incidents leave the Prototype with partial memories from fewer than five non-powered people he consumed. He has yet to develop the intended psionics, and his handlers initially mistake his limited speech for a lack of intelligence.",
+      "locationIds": [
+        "lazarus-facility"
+      ],
+      "participants": [
+        "the-prototype",
+        "lazarus-replication-researchers",
+        "lazarus-project-staff"
+      ],
+      "sourcePages": [
+        8,
+        13,
+        26,
+        38,
+        39,
+        48,
+        49
+      ],
+      "knowledge": [
+        {
+          "statement": "The project's surviving subject can regenerate and reshape himself, and he has not expressed the psionics the replication project sought.",
+          "visibleTo": [
+            "lazarus-replication-researchers"
+          ],
+          "route": "organization",
+          "evidence": "Program observations and Lazarus's stated knowledge, PDF pages 8 and 13."
+        },
+        {
+          "statement": "The Prototype has absorbed a small number of staff or subjects during Lazarus testing and containment incidents.",
+          "visibleTo": [
+            "lazarus-project-staff",
+            "lazarus-replication-researchers"
+          ],
+          "route": "organization",
+          "evidence": "Lazarus's records acknowledge absorption incidents, PDF pages 13 and 26."
+        },
+        {
+          "statement": "The Prototype carries incomplete impressions from some people he consumed and learns by watching his handlers.",
+          "visibleTo": [
+            "the-prototype"
+          ],
+          "route": "direct",
+          "evidence": "His own experience and memories, PDF pages 39 and 49."
+        }
+      ]
+    },
+    {
+      "id": "angela-fails-young-justice-evaluation",
+      "title": "Angela fails her Young Justice evaluation",
+      "when": "At age seventeen",
+      "summary": "Angela entered an evaluation for membership and leadership. During an exercise she tried to impose a coercive psionic override on Helena and used excessive force against Leon and Adrian when they intervened. The evaluation ended, membership and leadership were denied, and Angela lost unsupervised flight and faced restrictions on training and family contact.",
+      "locationIds": [],
+      "participants": [
+        "angela-ortuzar",
+        "helena-ortuzar",
+        "leon-ortuzar",
+        "adrian-ortuzar",
+        "kaldur-ahm"
+      ],
+      "sourcePages": [
+        12,
+        37,
+        39,
+        45,
+        63
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela tried to coerce Helena psychically, and the attempt triggered Leon and Adrian's intervention and Angela's attack on them.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "helena-ortuzar",
+            "leon-ortuzar",
+            "adrian-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "The four siblings were directly involved, PDF pages 39 and 45."
+        },
+        {
+          "statement": "The exercise ended after Angela used prohibited force. She failed the membership and leadership evaluation.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kaldur-ahm"
+          ],
+          "route": "direct",
+          "evidence": "Angela and Kaldur took part in the evaluation, PDF page 39."
+        }
+      ]
+    },
+    {
+      "id": "diana-withholds-comfort",
+      "title": "Diana withholds comfort after the evaluation",
+      "when": "Soon after the failed evaluation",
+      "summary": "Angela asked Diana for an embrace. Worried that giving comfort would minimize the harm to her other children, Diana withheld or delayed it. Angela felt that her mother's love had become conditional. Diana later recognized the cost of that response.",
+      "locationIds": [],
+      "participants": [
+        "angela-ortuzar",
+        "diana-of-themyscira"
+      ],
+      "sourcePages": [
+        12,
+        39,
+        44,
+        50,
+        72
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela asked for an embrace and Diana did not give it at that moment.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "diana-of-themyscira"
+          ],
+          "route": "direct",
+          "evidence": "Their private interaction, recalled by both at the quarry, PDF pages 39 and 72."
+        },
+        {
+          "statement": "Diana feared showing comfort would minimize the harm to Angela's siblings.",
+          "visibleTo": [
+            "diana-of-themyscira"
+          ],
+          "route": "direct",
+          "evidence": "Diana's own reason, PDF pages 39 and 50."
+        },
+        {
+          "statement": "Angela experienced the withheld embrace as conditional love.",
+          "visibleTo": [
+            "angela-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Angela's experience, PDF page 39."
+        }
+      ]
+    },
+    {
+      "id": "angela-attacks-superman",
+      "title": "Angela attacks Superman in Metropolis",
+      "when": "After the failed evaluation, well before Kara's arrival. The exact interval is unspecified.",
+      "summary": "Clark approached Angela as a family friend and she attacked him in public. He shielded civilians and absorbed or blocked attacks while trying to reach her. He could have answered with greater force and chose restraint. Recordings caught different parts of the confrontation and made it possible for later edits to suggest that Angela had defeated him.",
+      "locationIds": [
+        "metropolis"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "clark-kent"
+      ],
+      "sourcePages": [
+        10,
+        15,
+        24,
+        39,
+        40,
+        46,
+        70,
+        72
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela attacked Clark in public in Metropolis, and Clark protected nearby people while refusing to fight her as an enemy.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "clark-kent"
+          ],
+          "route": "direct",
+          "evidence": "The combatants' experience and Clark's later testimony, PDF pages 40 and 70."
+        }
+      ]
+    },
+    {
+      "id": "angela-begins-supervised-repair",
+      "title": "Angela begins supervised repair",
+      "when": "After the Metropolis attack",
+      "summary": "League review and family consequences led to restitution, civilian schooling and work, force calibration, supervised flight, limits on domination, and accountability to the people Angela harmed. Dinah served as mentor and team counselor while an independent clinician handled formal treatment. Team contact resumed without a promise of membership.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "dinah-lance",
+        "bruce-wayne",
+        "clark-kent",
+        "helena-ortuzar",
+        "leon-ortuzar",
+        "adrian-ortuzar"
+      ],
+      "sourcePages": [
+        12,
+        40,
+        47,
+        51,
+        63
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela was subject to formal restrictions and worked through restitution, supervised flight and structured accountability.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "dinah-lance",
+            "bruce-wayne"
+          ],
+          "route": "organization",
+          "evidence": "Angela's repair plan and Dinah's and Bruce's documented roles, PDF pages 40 and 47."
+        },
+        {
+          "statement": "Angela made herself answerable for the force she used against her siblings and Clark.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "clark-kent",
+            "helena-ortuzar",
+            "leon-ortuzar",
+            "adrian-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "The program required written and spoken accountability to them, PDF page 40."
+        }
+      ]
+    },
+    {
+      "id": "clark-and-angela-rebuild-trust",
+      "title": "Clark forgives Angela and rebuilds their relationship",
+      "when": "Begins during Angela's consequence period and continues through reintegration. Clark's forgiveness predates Kara's arrival by a substantial interval.",
+      "summary": "Clark forgave Angela before the public did. Their closeness returned through apology, restitution, ordinary meals and errands, training conversations, and flights. By Kara's arrival, he trusts Angela around civilians and considers her family. This repair overlapped her Young Justice reintegration.",
+      "locationIds": [
+        "metropolis"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "clark-kent"
+      ],
+      "sourcePages": [
+        13,
+        15,
+        24,
+        40,
+        42,
+        46,
+        51,
+        63
+      ],
+      "knowledge": [
+        {
+          "statement": "Clark forgave Angela willingly, and that forgiveness coexisted with sustained restitution and continued accountability.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "clark-kent"
+          ],
+          "route": "direct",
+          "evidence": "Their sustained repair and restored family bond, PDF pages 40, 42 and 51."
+        },
+        {
+          "statement": "The old attack was real, and Clark and Angela repaired their relationship before Kara's arrival.",
+          "visibleTo": [
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "dinah-lance",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock",
+            "jaime-reyes"
+          ],
+          "route": "organization",
+          "evidence": "Shared League and team knowledge of their history by the handoff, PDF pages 13 and 51."
+        }
+      ]
+    },
+    {
+      "id": "high-evolutionary-approaches-angela",
+      "title": "The High Evolutionary approaches Angela",
+      "when": "During Angela's consequence period",
+      "summary": "A living alternate Diego appeared to Angela and offered a view of her power that flattered her resentment of Earth. She refused to leave with him. He withdrew and continued observing. The precise terms of the offer remain unclear.",
+      "locationIds": [],
+      "participants": [
+        "angela-ortuzar",
+        "high-evolutionary"
+      ],
+      "sourcePages": [
+        9,
+        40,
+        48,
+        53,
+        56
+      ],
+      "knowledge": [
+        {
+          "statement": "The High Evolutionary offered Angela a different path and she refused to leave with him.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "high-evolutionary"
+          ],
+          "route": "direct",
+          "evidence": "Both took part in the encounter, PDF page 40."
+        }
+      ]
+    },
+    {
+      "id": "high-evolutionary-issues-warnings",
+      "title": "The High Evolutionary issues warnings",
+      "when": "After he reappears, before the opening. Exact relation to the Heart incident is unclear.",
+      "summary": "The High Evolutionary warned of Gravemind, Nightmare, and unknown machine civilizations. By the opening, the League and Young Justice know he is alive and unreliable and that he named Gravemind and Nightmare. Earth has had no encounter with either catastrophe.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "high-evolutionary"
+      ],
+      "sourcePages": [
+        9,
+        10,
+        13,
+        40,
+        55,
+        56,
+        57
+      ],
+      "knowledge": [
+        {
+          "statement": "The High Evolutionary issued warnings about entities called Gravemind and Nightmare.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "clark-kent",
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "dinah-lance",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock",
+            "jaime-reyes"
+          ],
+          "route": "organization",
+          "evidence": "Expressly shared League and Young Justice knowledge by the handoff, PDF page 13."
+        }
+      ]
+    },
+    {
+      "id": "angela-destroys-the-reaper-heart",
+      "title": "Angela and M'gann stop the Reaper Heart",
+      "when": "During supervised reintegration, before the Empress's invasion in the historical timeline",
+      "summary": "The High Evolutionary left or let the League recover an artifact called the Reaper Heart. It tried to make a psychic-machine interface and threatened M'gann's telepathy. Angela chose to destroy it and M'gann helped. No stable imprint took hold, the mechanism remains unclear, and Earth has very little information beyond the artifact's remains and the name.",
+      "locationIds": [],
+      "participants": [
+        "angela-ortuzar",
+        "m-gann-m-orzz"
+      ],
+      "sourcePages": [
+        9,
+        13,
+        41,
+        49,
+        60
+      ],
+      "knowledge": [
+        {
+          "statement": "The Heart threatened to interface through psychic abilities, and Angela and M'gann stopped it.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "Angela destroyed the device and M'gann survived and helped, PDF pages 41 and 49."
+        },
+        {
+          "statement": "A dangerous artificial device called the Reaper Heart was destroyed. The League lacks a reliable account of the civilization behind it.",
+          "visibleTo": [
+            "clark-kent",
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "dinah-lance",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "artemis-crock",
+            "jaime-reyes"
+          ],
+          "route": "organization",
+          "evidence": "Expressly shared League and team knowledge by the handoff, PDF pages 9 and 13."
+        }
+      ]
+    },
+    {
+      "id": "the-empress-invades-earth",
+      "title": "The Empress's invasion is defeated",
+      "when": "During Angela's reintegration, before her full membership",
+      "summary": "The Empress came through a Tevinter route and attacked a populated area. Angela helped create an opening, combined League forces subdued the Empress, and the Empress hesitated. The League granted supervised redemption at Angela's urging, with secure residence, therapy, testimony, supervised movement, and restrictions on Tevinter equipment. This is Angela's sole fight with a Tevinter agent by the opening.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "the-empress"
+      ],
+      "sourcePages": [
+        9,
+        13,
+        35,
+        41,
+        48,
+        53,
+        54
+      ],
+      "knowledge": [
+        {
+          "statement": "The Empress fought Angela and the League, and the League restrained her after a combined response.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "the-empress"
+          ],
+          "route": "direct",
+          "evidence": "Both fought in the incident, PDF page 41."
+        },
+        {
+          "statement": "The invader served Tevinter and was offered supervised terms after her defeat.",
+          "visibleTo": [
+            "clark-kent",
+            "diana-of-themyscira",
+            "bruce-wayne",
+            "dinah-lance",
+            "victor-stone",
+            "j-onn-j-onzz",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock",
+            "jaime-reyes"
+          ],
+          "route": "organization",
+          "evidence": "Expressly shared League and Young Justice knowledge by the handoff, PDF page 13."
+        }
+      ]
+    },
+    {
+      "id": "angela-regains-membership-and-flight",
+      "title": "Angela earns full membership and independent flight",
+      "when": "Late in Angela's repair process, shortly before the opening",
+      "summary": "Angela progressed from observation and training to supervised missions, residence access, and provisional membership. Sustained performance, peer input, and Kaldur's recommendation brought full membership. Independent flight was restored after another period of demonstrated judgment. Kaldur remained team leader.",
+      "locationIds": [
+        "young-justice-headquarters"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kaldur-ahm"
+      ],
+      "sourcePages": [
+        11,
+        23,
+        41,
+        43,
+        47,
+        52,
+        63
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela earned full membership and subsequently regained unsupervised flight. She operates under Kaldur's field command and the same review structure as her peers.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock",
+            "jaime-reyes"
+          ],
+          "route": "organization",
+          "evidence": "Young Justice status and Kaldur's recommendation, PDF pages 11, 41 and 47."
+        }
+      ]
+    },
+    {
+      "id": "kara-arrives-and-finds-the-footage",
+      "title": "Kara arrives on Earth and finds the footage",
+      "when": "After Krypton's loss and shortly before the quarry encounter",
+      "summary": "New to Earth and protective of her remaining family, Kara encounters real but edited footage of Angela's attack on Clark and commentary claiming that family connections shielded Angela from consequences. She seeks Angela out before asking Clark for any account. The person or channel responsible for curating the package is unconfirmed.",
+      "locationIds": [
+        "earth-prime"
+      ],
+      "participants": [
+        "kara"
+      ],
+      "sourcePages": [
+        7,
+        42,
+        46,
+        58,
+        59,
+        64,
+        70,
+        71
+      ],
+      "knowledge": [
+        {
+          "statement": "Kara saw recordings showing Angela attack Clark and commentary claiming that the League covered up the incident.",
+          "visibleTo": [
+            "kara"
+          ],
+          "route": "observation",
+          "evidence": "Kara saw the dark-web package and recounts its cover-up claim, PDF pages 42 and 71."
+        },
+        {
+          "statement": "Kara went looking for Angela because she believed Clark had been attacked and left unprotected.",
+          "visibleTo": [
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Kara's motivation and choice, PDF pages 42 and 46."
+        }
+      ]
+    },
+    {
+      "id": "kara-and-angela-first-contact",
+      "title": "Kara attacks Angela and is restrained",
+      "when": "Late afternoon, during Angela's independent patrol",
+      "summary": "Kara starts the fight and Angela's communicator breaks in the opening exchange. Kara wins most direct exchanges. Angela laughs and escalates against an opponent she can hit hard. When Kara says Kal-El and Angela sees the House of El crest, Angela opens her hands, lowers pressure and attempts to leave or explain. Kara interprets that as manipulation and resumes with heat vision. Angela uses the terrain and layered telekinetic restraint to immobilize Kara by a narrow margin, without domination or a finishing blow. Both are badly hurt.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara"
+      ],
+      "sourcePages": [
+        7,
+        42,
+        52,
+        64,
+        65,
+        66,
+        67,
+        69
+      ],
+      "knowledge": [
+        {
+          "statement": "Kara began the fight. Angela's communicator failed in the first exchange, and she recognized Kara's connection to Clark only when Kara invoked Kal-El and revealed the House of El crest.",
+          "visibleTo": [
+            "angela-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Angela's experience of first contact, PDF pages 64-67 and 69."
+        },
+        {
+          "statement": "Kara confronted Angela first and continued the attack after Angela tried to stop.",
+          "visibleTo": [
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Kara initiated the exchange and fired again after Angela lowered her fields, PDF pages 64-66."
+        },
+        {
+          "statement": "Angela laughed before the crest was recognized. She opened her hands and lowered her forward fields after Kara invoked Kal-El, and Kara attacked again.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Both combatants witnessed those actions. Kara identifies Clark by saying, “You attacked Kal-El.” See PDF pages 64-66 and 69."
+        },
+        {
+          "statement": "Kara thought Angela's attempt to disengage was a trick.",
+          "visibleTo": [
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Kara's interpretation during the fight, PDF page 64."
+        },
+        {
+          "statement": "Angela felt exhilarated at being able to use more force against a durable opponent and wanted the fight to continue before recognition.",
+          "visibleTo": [
+            "angela-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Angela's internal recollection, PDF pages 64 and 65."
+        },
+        {
+          "statement": "Angela held Kara with layered telekinetic planes and did not use domination or deliver a finishing blow.",
+          "visibleTo": [
+            "angela-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Angela's account and the established account of the fight, PDF pages 64 and 67."
+        },
+        {
+          "statement": "Kara remained conscious under layered physical restraint that blocked her attempts to fly or gain leverage.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Both experienced the restraint, PDF pages 64 and 65."
+        }
+      ]
+    },
+    {
+      "id": "the-prototype-observes-his-handlers",
+      "title": "The Prototype watches his handlers in confinement",
+      "when": "In parallel with the quarry aftermath",
+      "summary": "At the hidden Lazarus facility, the Prototype is still in confinement. He has begun to compare what the handlers tell him with how a locked door works and what they actually do. His handlers still underestimate how much he learns by watching them and drawing on fragmentary memories. He has never encountered Angela and has yet to choose a name.",
+      "locationIds": [
+        "lazarus-facility"
+      ],
+      "participants": [
+        "the-prototype",
+        "lazarus-project-staff"
+      ],
+      "sourcePages": [
+        7,
+        13,
+        22,
+        48,
+        49,
+        53,
+        63
+      ],
+      "knowledge": [
+        {
+          "statement": "The Prototype is still held in the Lazarus facility and has not displayed the psionics sought by his handlers.",
+          "visibleTo": [
+            "lazarus-project-staff"
+          ],
+          "route": "observation",
+          "evidence": "The hidden parallel state and Lazarus's knowledge, PDF pages 13 and 22."
+        },
+        {
+          "statement": "The Prototype is comparing staff behavior with the commands he is given while he remains confined.",
+          "visibleTo": [
+            "the-prototype"
+          ],
+          "route": "direct",
+          "evidence": "His own developing awareness, PDF pages 22 and 48."
+        }
+      ]
+    },
+    {
+      "id": "young-justice-secures-the-quarry",
+      "title": "Young Justice arrives and safely releases Kara",
+      "when": "Immediately after the fight, when Angela's damaged communicator can send location",
+      "summary": "Angela's shattered communicator briefly transmits location, without voice. She tells Kara it has been trying for forty-three minutes. Kaldur, Cassie and M'gann arrive first, with Jaime and Artemis on the rim. Kaldur takes command, hears Angela's status report, and coordinates a staged release after another attempted surge. M'gann checks without entering either mind. Kara stays put after release. Jaime's scan finds no immediate organ failure, Artemis reports a clear perimeter, and Cassie asks permission to support Angela.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara",
+        "kaldur-ahm",
+        "cassie-sandsmark",
+        "m-gann-m-orzz",
+        "jaime-reyes",
+        "artemis-crock"
+      ],
+      "sourcePages": [
+        21,
+        64,
+        65,
+        66,
+        67,
+        68
+      ],
+      "knowledge": [
+        {
+          "statement": "The communicator could send location but had no usable voice signal. Angela said it had been trying for forty-three minutes.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "The two heard the pulse and discussed it before the team arrived, PDF page 66."
+        },
+        {
+          "statement": "Kaldur found Angela injured and already holding Kara restrained. Kaldur ordered a gradual release, and Kara stayed where she was afterward.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "observation",
+          "evidence": "These witnesses were at the crater during the release, PDF pages 66-68."
+        },
+        {
+          "statement": "Angela reported the loss of communications on first impact, no domination or kryptonite exposure, and no civilian casualties she had detected. She reported concussion, rib and shoulder injuries and psionic overload. She suspected Kara had wrist and rib fractures.",
+          "visibleTo": [
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "kara"
+          ],
+          "route": "direct",
+          "evidence": "Angela's initial report to Kaldur, PDF page 67. The fractures were preliminary, and the team had arrived after the fight."
+        },
+        {
+          "statement": "M'gann sensed consciousness, fear and anger without entering either mind.",
+          "visibleTo": [
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "Her own check at the scene, PDF page 67."
+        },
+        {
+          "statement": "M'gann reported both combatants conscious and distressed and stated she would not enter their minds without consent.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara",
+            "kaldur-ahm",
+            "cassie-sandsmark"
+          ],
+          "route": "direct",
+          "evidence": "M'gann said this at the crater, PDF page 67."
+        },
+        {
+          "statement": "Jaime's scan found no immediate organ failure in either combatant.",
+          "visibleTo": [
+            "jaime-reyes",
+            "kaldur-ahm",
+            "angela-ortuzar",
+            "kara",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "observation",
+          "evidence": "Jaime announced the scan result on scene, PDF page 68."
+        },
+        {
+          "statement": "Cassie asked before touching Angela and supported her uninjured side after Angela agreed.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "cassie-sandsmark"
+          ],
+          "route": "direct",
+          "evidence": "They took part in the exchange, PDF page 68."
+        },
+        {
+          "statement": "Artemis called in the perimeter as clear.",
+          "visibleTo": [
+            "artemis-crock",
+            "kaldur-ahm",
+            "jaime-reyes"
+          ],
+          "route": "direct",
+          "evidence": "Artemis reported from the quarry rim, PDF page 68."
+        }
+      ]
+    },
+    {
+      "id": "angela-admits-enjoying-the-fight",
+      "title": "Angela tells Kaldur when she tried to stop",
+      "when": "After restraint is lifted, before Clark lands",
+      "summary": "Kaldur asks when Angela recognized Kara. Angela describes lowering her fields after seeing the crest and hearing Kal-El. Kara brings up Angela's laugh, and Angela admits she took too much pleasure in being able to hit a durable opponent without her usual caution. M'gann reports sensing no active intent to continue without going deeper. Clark lands after this exchange.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara",
+        "kaldur-ahm",
+        "cassie-sandsmark",
+        "m-gann-m-orzz",
+        "jaime-reyes",
+        "artemis-crock"
+      ],
+      "sourcePages": [
+        21,
+        68,
+        69
+      ],
+      "knowledge": [
+        {
+          "statement": "Angela told Kaldur she lowered every forward field and tried to leave once she recognized the House of El connection. She admitted laughing and enjoying the fight before that point.",
+          "visibleTo": [
+            "kara",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "After Kara mentions the laugh, Angela links her admission to her attempt to stop: “Both are true.” See PDF page 69."
+        },
+        {
+          "statement": "M'gann reported that Angela showed no active intent to continue, within what M'gann could determine without entering her mind.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "M'gann states the limit of her assessment at the crater, PDF page 69."
+        }
+      ]
+    },
+    {
+      "id": "clark-corrects-the-footage",
+      "title": "Clark tells Kara what the footage omitted",
+      "when": "After Young Justice releases Kara and hears Angela's admission",
+      "summary": "Clark arrives and says he knew Angela was on patrol but did not know Kara had gone looking for her. He confirms the recordings were real and says that he protected civilians and chose restraint during the original attack. He explains Angela's consequences, subsequent work, and his voluntary forgiveness. Kara says her files framed the outcome as a cover-up. Bruce is heard once through Jaime's channel after Artemis challenges the files' reliability.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara",
+        "kaldur-ahm",
+        "cassie-sandsmark",
+        "m-gann-m-orzz",
+        "jaime-reyes",
+        "artemis-crock",
+        "clark-kent",
+        "bruce-wayne"
+      ],
+      "sourcePages": [
+        42,
+        46,
+        51,
+        53,
+        69,
+        70,
+        71
+      ],
+      "knowledge": [
+        {
+          "statement": "Clark knew Angela was on patrol but had not known Kara was searching for her.",
+          "visibleTo": [
+            "clark-kent",
+            "kara",
+            "angela-ortuzar"
+          ],
+          "route": "direct",
+          "evidence": "Clark says this to Kara upon arrival, PDF page 70."
+        },
+        {
+          "statement": "Clark told Kara that the recordings showed a real attack. He chose to protect others instead of fighting Angela as an enemy, and she hurt him without defeating him.",
+          "visibleTo": [
+            "kara",
+            "angela-ortuzar",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "Clark gives this eyewitness account at the crater, PDF page 70."
+        },
+        {
+          "statement": "Clark told Kara that Angela's privileges were restricted, that she earned her way back, and that he forgave her by choice after she took responsibility.",
+          "visibleTo": [
+            "kara",
+            "angela-ortuzar",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock"
+          ],
+          "route": "direct",
+          "evidence": "Clark tells Kara, “forgiveness was mine to give.” See PDF pages 70 and 71."
+        },
+        {
+          "statement": "Kara said the material had alleged a League cover-up.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "clark-kent",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "m-gann-m-orzz",
+            "artemis-crock"
+          ],
+          "route": "direct",
+          "evidence": "Kara states what the files claimed, PDF page 71."
+        },
+        {
+          "statement": "Artemis openly questioned the reliability of the online package while Jaime's channel was restored.",
+          "visibleTo": [
+            "artemis-crock",
+            "bruce-wayne",
+            "jaime-reyes"
+          ],
+          "route": "direct",
+          "evidence": "Artemis challenges the source, and Bruce responds over Jaime's channel, PDF page 71."
+        }
+      ]
+    },
+    {
+      "id": "angela-requests-medical-stand-down",
+      "title": "Kaldur grants Angela's voluntary medical stand-down",
+      "when": "During the same quarry response, after Clark's explanation",
+      "summary": "Kaldur says that Kara initiated the attack and that Angela's earlier force choices still need review. He orders medical treatment and separate debriefs. Angela hands him her cracked flight-clearance beacon and requests a voluntary twenty-four-hour stand-down pending medical clearance from Victor and telemetry review. Kaldur grants it without revoking her formal clearance or deciding responsibility.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara",
+        "clark-kent",
+        "kaldur-ahm",
+        "cassie-sandsmark",
+        "m-gann-m-orzz",
+        "jaime-reyes",
+        "artemis-crock"
+      ],
+      "sourcePages": [
+        11,
+        21,
+        52,
+        58,
+        71
+      ],
+      "knowledge": [
+        {
+          "statement": "Separate medical treatment and debriefs were ordered. Kaldur said Kara's reasons and Angela's use of force would both be considered.",
+          "visibleTo": [
+            "kaldur-ahm",
+            "angela-ortuzar",
+            "kara",
+            "clark-kent",
+            "cassie-sandsmark",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "Kaldur addresses both combatants at the scene, PDF page 71."
+        },
+        {
+          "statement": "Angela requested a voluntary twenty-four-hour medical stand-down. Kaldur granted it, and Angela kept her formal independent flight clearance pending review.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kaldur-ahm",
+            "cassie-sandsmark",
+            "kara",
+            "clark-kent",
+            "m-gann-m-orzz"
+          ],
+          "route": "direct",
+          "evidence": "Angela and Kaldur make the decision at the crater, PDF page 71."
+        }
+      ]
+    },
+    {
+      "id": "kara-asks-for-the-full-story",
+      "title": "Kara asks Angela for the rest of the story",
+      "when": "The end of the quarry scene and the canon handoff",
+      "summary": "Diana and Diego arrive. Diego releases his momentary pressure at Angela's signal and leaves Kaldur in command. Diana asks before embracing Angela, then expresses pride that she tried to stop and concern that she enjoyed the fight. Clark helps Kara to her feet. Jaime calls for transport, M'gann coordinates separate medical routes, and Kaldur preserves the scene. Artemis retrieves Kara's damaged device and returns it with the Metropolis video frozen on screen. Kara asks Angela to explain what the video omitted. Neither has apologized, and no separate debrief or joint reconciliation has occurred.",
+      "locationIds": [
+        "abandoned-quarry"
+      ],
+      "participants": [
+        "angela-ortuzar",
+        "kara",
+        "clark-kent",
+        "diana-of-themyscira",
+        "diego-ortuzar",
+        "kaldur-ahm",
+        "cassie-sandsmark",
+        "m-gann-m-orzz",
+        "jaime-reyes",
+        "artemis-crock"
+      ],
+      "sourcePages": [
+        39,
+        50,
+        71,
+        72,
+        73
+      ],
+      "knowledge": [
+        {
+          "statement": "Diego backed off after Angela signaled him and allowed Kaldur to stay in charge.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "diego-ortuzar",
+            "diana-of-themyscira"
+          ],
+          "route": "direct",
+          "evidence": "Angela signals, Diego releases the pressure, and the prose confirms he leaves command with Kaldur, PDF pages 71 and 72."
+        },
+        {
+          "statement": "Diana offered Angela an embrace, received consent, and said she was both proud that Angela tried to stop and concerned that she enjoyed the fight.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "diana-of-themyscira"
+          ],
+          "route": "direct",
+          "evidence": "Diana's words to Angela during the embrace, PDF page 72."
+        },
+        {
+          "statement": "Transport was requested, separate medical routes were being prepared, and the crater was preserved for evidence.",
+          "visibleTo": [
+            "jaime-reyes",
+            "m-gann-m-orzz",
+            "kaldur-ahm"
+          ],
+          "route": "organization",
+          "evidence": "Their on-scene response roles, PDF page 72."
+        },
+        {
+          "statement": "The damaged device showed a still image of Angela above Clark in Metropolis. Artemis returned it to Kara without playing the video.",
+          "visibleTo": [
+            "artemis-crock",
+            "kara"
+          ],
+          "route": "observation",
+          "evidence": "Artemis retrieves and hands over the lit device, PDF pages 72 and 73."
+        },
+        {
+          "statement": "Looking at the video and then at Angela, Kara asked for the part the footage omitted.",
+          "visibleTo": [
+            "angela-ortuzar",
+            "kara",
+            "clark-kent"
+          ],
+          "route": "direct",
+          "evidence": "Kara asks, “Then tell me the part the video left out.” See PDF page 73."
+        }
+      ]
+    }
+  ],
+  "openThreads": [
+    {
+      "summary": "The two combatants' injuries still need assessment. Separate debriefs, survey of the quarry, and suit and communication telemetry review are pending. The review must establish earlier disengagement opportunities, force choices, civilian risk, and why communications remained down. Angela's voluntary stand-down is already in effect.",
+      "sourcePages": [
+        21,
+        22,
+        49,
+        50,
+        58,
+        71,
+        72
+      ]
+    },
+    {
+      "summary": "Kara has asked for Angela's account. They have not apologized. Kara's cultural and family support, possible integration with the team, and any future relationship with Angela are unresolved.",
+      "sourcePages": [
+        46,
+        52,
+        53,
+        58,
+        59,
+        73
+      ]
+    },
+    {
+      "summary": "The underlying attack footage is real and publicly recorded. Who assembled or promoted the particular edited package Kara found, and whether the spread was deliberate or organic, remains unknown.",
+      "sourcePages": [
+        24,
+        40,
+        58,
+        59,
+        70,
+        71,
+        72
+      ]
+    },
+    {
+      "summary": "The Empress's supervised redemption is ongoing. The strength of her current loyalty to Tevinter, what she can safely reveal, and what the Imperium will do next are open questions.",
+      "sourcePages": [
+        9,
+        25,
+        41,
+        48,
+        54,
+        55,
+        59
+      ]
+    },
+    {
+      "summary": "The High Evolutionary's reasons for supplying the Heart, his role in the Empress's path to Tevinter, and what he knows about Lazarus or distant catastrophes remain unconfirmed.",
+      "sourcePages": [
+        9,
+        13,
+        14,
+        41,
+        48,
+        55,
+        59
+      ]
+    },
+    {
+      "summary": "The Heart was destroyed before a lasting interface formed. Its mechanism, the meaning of the surviving fragments, and the civilization behind the name Reaper remain unknown to Earth.",
+      "sourcePages": [
+        8,
+        9,
+        13,
+        41,
+        56,
+        60
+      ]
+    },
+    {
+      "summary": "Lazarus has yet to be exposed. The Prototype's escape and his eventual choice of the name Emanuel lie beyond the handoff. Angela and Diego have no knowledge of him. Any first contact or familial relationship must develop after discovery.",
+      "sourcePages": [
+        7,
+        13,
+        22,
+        48,
+        49,
+        53,
+        59,
+        60
+      ]
+    },
+    {
+      "summary": "The Apokolips scar is monitored, but salvage accountability remains unresolved. The League has yet to discover that the aftermath gave Lazarus access to Diego's living cells.",
+      "sourcePages": [
+        13,
+        25,
+        38,
+        60
+      ]
+    },
+    {
+      "summary": "Earth has only warnings about Gravemind and Nightmare, and Brainiac God is an independent distant threat. A future Nightmare manifestation involving Angela and a freed Prototype is a hidden possibility contingent on physical and psychic joining under extreme distress. The convergence has not happened and is outside their knowledge.",
+      "sourcePages": [
+        9,
+        10,
+        13,
+        28,
+        29,
+        55,
+        56,
+        57,
+        60,
+        63
+      ]
+    },
+    {
+      "summary": "Angela still wants to lead someday. Her current role is full membership under Kaldur, and the aftermath tests how she takes responsibility while remaining part of the team.",
+      "sourcePages": [
+        11,
+        41,
+        43,
+        47,
+        52,
+        60,
+        71
+      ]
+    }
+  ]
+}
