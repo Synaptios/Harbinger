@@ -1,249 +1,214 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 
 const OPENAI = 'openai';
 const OPENROUTER = 'openrouter';
-const MODELS = [
-  {
-    id: 'gpt-6.1-terra', label: 'GPT-6.1 Terra', provider: OPENAI,
-    description: 'Default game master for natural dialogue and distinct voices.',
-    effort: 'low',
-  },
-  {
-    id: 'google/gemini-4-argon', label: 'Gemini 4 Argon', provider: OPENROUTER,
-    description: 'Creative-writing comparison for narration and worldbuilding.',
-    effort: 'low',
-  },
-  {
-    id: 'anthropic/claude-sonnet-5.5', label: 'Claude Sonnet 5.5', provider: OPENROUTER,
-    description: 'Alternative game master for dialogue and action resolution.',
-    effort: 'low',
-  },
-  {
-    id: 'gpt-6-luna', label: 'GPT-6 Luna', provider: OPENAI,
-    description: 'Low-cost baseline for action resolution and narration.',
-    effort: 'low',
-  },
-];
-
-const DEMO = {
-  id: 'demo', label: 'Offline demo', provider: 'demo', available: true,
-  description: 'Play the opening with a scripted game master.',
+const LABELS = { [OPENAI]: 'OpenAI', [OPENROUTER]: 'OpenRouter' };
+const BASE_URLS = {
+  [OPENAI]: 'https://api.openai.com/v1',
+  [OPENROUTER]: 'https://openrouter.ai/api/v1',
 };
 
-const ENDPOINTS = {
-  [OPENAI]: 'https://api.openai.com/v1/responses',
-  [OPENROUTER]: 'https://openrouter.ai/api/v1/chat/completions',
-};
-
-const PROVIDER_LABELS = { [OPENAI]: 'OpenAI', [OPENROUTER]: 'OpenRouter' };
-const TIMEOUT_MS = 55_000;
-const MAX_OUTPUT_TOKENS = 4_096;
-
-function error(message, code, status) {
-  return Object.assign(new Error(message), { code, status });
+function requestError(message, status) {
+  return Object.assign(new Error(message), { status });
 }
 
-function readCredentials(file) {
-  if (!file) return {};
+function readCredentials(path, optional = false) {
   let source;
   try {
-    source = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').trim();
-  } catch {
-    throw new Error('Could not read CREDENTIALS_FILE. Check that the server can access the file.');
+    source = readFileSync(path, 'utf8').trim();
+  } catch (error) {
+    if (optional && error.code === 'ENOENT') return {};
+    throw new Error('Could not read the credentials file.');
   }
 
   try {
-    const credentials = source.startsWith('{') ? JSON.parse(source) : parseEnv(source);
-    if (!credentials || typeof credentials !== 'object' || Array.isArray(credentials)) {
-      throw new Error();
-    }
-    return credentials;
+    const values = source.startsWith('{') ? JSON.parse(source) : parseEnv(source);
+    if (!values || typeof values !== 'object' || Array.isArray(values)) throw new Error();
+    return values;
   } catch {
-    throw new Error('CREDENTIALS_FILE must contain JSON key/value pairs or dotenv assignments.');
+    throw new Error('The credentials file must contain dotenv assignments or a JSON object.');
   }
 }
 
-function setting(env, file, name, alias = name) {
-  const value = env[name] ?? env[alias] ?? file[name] ?? file[alias]
+function keyFrom(env, file, name, alias) {
+  const key = env[name] ?? env[alias] ?? file[name] ?? file[alias]
     ?? file[name.toLowerCase()] ?? file[alias.toLowerCase()];
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof key === 'string' ? key.trim() : '';
 }
 
-function configuredModel(id, provider) {
-  if (!id) return null;
-  if (provider === OPENAI && !/^(?:gpt-[a-z0-9]|o[1-9])[a-z0-9.-]*$/.test(id)) {
-    throw new Error('OPENAI_MODEL must be a direct OpenAI text model ID.');
-  }
-  if (provider === OPENROUTER) {
-    const publisher = id.split('/')[0];
-    if (!/^[a-z0-9-]+\/[a-z0-9][a-z0-9._-]*(?::[a-z0-9-]+)?$/.test(id)
-      || publisher === 'openai' || publisher === 'openrouter') {
-      throw new Error('OPENROUTER_MODEL must identify a non-OpenAI model by publisher and model ID.');
-    }
-  }
-
-  return MODELS.find(model => model.id === id) ?? {
-    id, label: id, provider, description: 'Model configured on the game server.',
-  };
+function requiresDirectModel(id) {
+  return typeof id === 'string' && /^~?(?:openai|openrouter)\//i.test(id);
 }
 
-function makeRequest({ model, system, input, schema }) {
-  const format = { name: 'bellwether_turn', strict: true, schema };
-  const prompt = typeof input === 'string' ? input : JSON.stringify(input);
-  if (model.provider === OPENAI) {
-    return {
-      model: model.id,
-      instructions: system,
-      input: prompt,
-      store: false,
-      max_output_tokens: MAX_OUTPUT_TOKENS,
-      text: { format: { type: 'json_schema', ...format } },
-      ...(model.effort && { reasoning: { effort: model.effort } }),
-    };
+function supportsChat(provider, model) {
+  if (provider === OPENAI) {
+    // The OpenAI model list supplies IDs but no capability metadata.
+    const id = model.id.startsWith('ft:') ? model.id.split(':')[1] : model.id;
+    return !/^(?:text-embedding|text-moderation|omni-moderation|tts-|whisper-|dall-e|sora|babbage-002|davinci-002|computer-use)|(?:-realtime|-transcribe|-deep-research|-image(?:-|$))/i.test(id);
   }
 
-  return {
-    model: model.id,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: prompt },
-    ],
-    max_tokens: MAX_OUTPUT_TOKENS,
-    provider: { require_parameters: true },
-    response_format: { type: 'json_schema', json_schema: format },
-    ...(model.effort && { reasoning: { effort: model.effort, exclude: true } }),
-  };
+  const { input_modalities: input, output_modalities: output } = model.architecture ?? {};
+  return (!Array.isArray(input) || input.includes('text'))
+    && (!Array.isArray(output) || output.includes('text'))
+    && (!Array.isArray(model.endpoints) || model.endpoints.includes('/api/v1/chat/completions'));
 }
 
-function requestError(provider, status) {
+function upstreamError(provider, status) {
+  const label = LABELS[provider];
   if (status === 401 || status === 403) {
-    return error(`${provider} rejected the key or model access. Check your API account.`, 'provider_auth', 502);
+    return requestError(`${label} denied the API key or model access.`, 502);
   }
   if (status === 402 || status === 429) {
-    return error(`${provider} reported a rate limit or a billing limit. Check your API account before retrying.`, 'provider_limit', 503);
+    return requestError(`${label} reported a rate or billing limit.`, 503);
   }
-  if (status === 404) {
-    return error(`${provider} could not find an available route for this model. Choose another model.`, 'provider_model', 502);
+  if (status === 400 || status === 404 || status === 422) {
+    return requestError(`${label} rejected the request. Check model access, text chat support, and the length of the conversation.`, 502);
   }
-  if (status === 400 || status === 422) {
-    return error(`${provider} rejected this model request. Check model compatibility with structured output.`, 'provider_request', 502);
-  }
-  return error(`${provider} could not answer this turn. Try again.`, 'provider_unavailable', 502);
+  return requestError(`${label} is temporarily unavailable.`, 502);
 }
 
-function invalidOutput(provider) {
-  return error(`${provider} did not return a complete structured turn. Try a different action or model.`, 'invalid_output', 502);
+function needsChatCompletions(status, error) {
+  return (status === 400 || status === 404) && (
+    error?.code === 'model_not_found'
+    || /chat.completions|(?:not supported|does not support|not compatible).*(?:responses|endpoint)/i.test(error?.message ?? '')
+  );
 }
 
-function parseResult(payload, model) {
-  const provider = PROVIDER_LABELS[model.provider];
-  if (payload?.error) {
-    const code = payload.error.code;
-    throw requestError(provider, typeof code === 'string' ? Number(code) : code);
+function replyText(payload, responses) {
+  if (responses) {
+    return (Array.isArray(payload.output) ? payload.output : [])
+      .filter(item => item?.type === 'message' && Array.isArray(item.content))
+      .flatMap(item => item.content)
+      .map(part => part?.type === 'output_text' ? part.text : part?.refusal)
+      .filter(text => typeof text === 'string')
+      .join('');
   }
 
-  let outputText;
-  let inputTokens;
-  let outputTokens;
-  if (model.provider === OPENAI) {
-    if (payload?.status === 'completed' && Array.isArray(payload.output)) {
-      const parts = payload.output.filter(item => item?.type === 'message' && Array.isArray(item.content))
-        .flatMap(item => item.content);
-      if (!parts.some(part => part?.type === 'refusal')) {
-        outputText = parts.filter(part => part?.type === 'output_text' && typeof part.text === 'string')
-          .map(part => part.text).join('');
-      }
-    }
-    inputTokens = payload?.usage?.input_tokens;
-    outputTokens = payload?.usage?.output_tokens;
-  } else {
-    const choice = payload?.choices?.[0];
-    if (choice?.finish_reason === 'stop' && !choice.message?.refusal) {
-      outputText = choice.message?.content;
-    }
-    inputTokens = payload?.usage?.prompt_tokens;
-    outputTokens = payload?.usage?.completion_tokens;
+  const reply = payload.choices?.[0]?.message;
+  if (Array.isArray(reply?.content)) {
+    return reply.content.map(part => part?.text).filter(text => typeof text === 'string').join('');
   }
-
-  let output;
-  try {
-    output = typeof outputText === 'string' ? JSON.parse(outputText) : null;
-  } catch {
-    output = null;
-  }
-  if (!output || typeof output !== 'object' || Array.isArray(output)) {
-    throw invalidOutput(provider);
-  }
-
-  const usage = Number.isFinite(inputTokens) && Number.isFinite(outputTokens)
-    ? { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens }
-    : undefined;
-  return { output, usage };
+  return typeof reply?.content === 'string' ? reply.content : reply?.refusal;
 }
 
-export function makeProviders({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
-  const file = readCredentials(env.CREDENTIALS_FILE);
+export function createProviders({ env = process.env, cwd = process.cwd(), fetchImpl = globalThis.fetch } = {}) {
+  const file = env.CREDENTIALS_FILE
+    ? readCredentials(resolve(cwd, env.CREDENTIALS_FILE))
+    : { ...readCredentials(resolve(cwd, '.env'), true), ...readCredentials(resolve(cwd, '.credentials'), true) };
   const keys = {
-    [OPENAI]: setting(env, file, 'OPENAI_API_KEY', 'OPEN_AI_API_KEY'),
-    [OPENROUTER]: setting(env, file, 'OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'),
+    [OPENAI]: keyFrom(env, file, 'OPENAI_API_KEY', 'OPEN_AI_API_KEY'),
+    [OPENROUTER]: keyFrom(env, file, 'OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'),
   };
-  const overrides = [
-    configuredModel(setting(env, file, 'OPENAI_MODEL'), OPENAI),
-    configuredModel(setting(env, file, 'OPENROUTER_MODEL'), OPENROUTER),
-  ].filter(Boolean);
-  const models = new Map([...overrides, ...MODELS].map(model => [model.id, model]));
+  let cachedCatalog;
+  let expiresAt = 0;
+  let pendingCatalog;
 
-  function catalog() {
-    const availableModels = [...models.values()].map(({ id, label, provider, description }) => ({
-      id, label, provider, description, available: Boolean(keys[provider]),
-    }));
-    return {
-      models: [...availableModels, { ...DEMO }],
-      defaultModel: availableModels.find(model => model.available)?.id ?? DEMO.id,
-    };
-  }
+  async function call(provider, path, body) {
+    const signal = AbortSignal.timeout(body ? 120_000 : 12_000);
+    const headers = { Accept: 'application/json' };
+    if (keys[provider]) headers.Authorization = `Bearer ${keys[provider]}`;
+    if (body) headers['Content-Type'] = 'application/json';
 
-  async function generate({ model, system, input, schema }) {
-    const entry = models.get(model);
-    if (!entry) throw error('Choose an available model.', 'unknown_model', 400);
-    const provider = PROVIDER_LABELS[entry.provider];
-    const key = keys[entry.provider];
-    if (!key) throw error(`${provider} needs an API key on the game server.`, 'provider_not_configured', 503);
-
-    const body = JSON.stringify(makeRequest({ model: entry, system, input, schema }));
-    const signal = AbortSignal.timeout(TIMEOUT_MS);
-    let response;
     try {
-      response = await fetchImpl(ENDPOINTS[entry.provider], {
-        method: 'POST', redirect: 'error', signal,
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body,
+      const response = await fetchImpl(BASE_URLS[provider] + path, {
+        method: body ? 'POST' : 'GET',
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        redirect: 'error',
+        signal,
       });
+      const data = await response.json().catch(() => null);
+      return { ok: response.ok, status: response.status, data };
     } catch {
-      if (signal.aborted) {
-        throw error(`${provider} took too long to answer. Try again or choose another model.`, 'provider_timeout', 504);
-      }
-      throw requestError(provider);
+      if (signal.aborted) throw requestError(`${LABELS[provider]} took too long to respond.`, 504);
+      throw upstreamError(provider);
     }
-    if (!response.ok) {
-      response.body?.cancel().catch(() => {});
-      throw requestError(provider, response.status);
-    }
-
-    let payload;
-    try {
-      payload = await response.json();
-    } catch (cause) {
-      if (signal.aborted) {
-        throw error(`${provider} took too long to answer. Try again or choose another model.`, 'provider_timeout', 504);
-      }
-      if (cause instanceof SyntaxError) throw invalidOutput(provider);
-      throw requestError(provider);
-    }
-
-    return parseResult(payload, entry);
   }
 
-  return { catalog, generate };
+  async function list(provider) {
+    const available = Boolean(keys[provider]);
+    const missingKey = `Set ${provider === OPENAI ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY'} to use ${LABELS[provider]}.`;
+    if (provider === OPENAI && !available) return { models: [], error: missingKey };
+
+    try {
+      const { ok, status, data } = await call(provider, '/models');
+      if (!ok || !Array.isArray(data?.data)) throw upstreamError(provider, status);
+      const models = new Map();
+      for (const model of data.data) {
+        const id = model?.id;
+        if (typeof id !== 'string' || !id) continue;
+        if (provider === OPENROUTER && (
+          requiresDirectModel(id) || requiresDirectModel(model.canonical_slug) || model.architecture?.tokenizer === 'Router'
+        )) continue;
+        models.set(id, {
+          id,
+          label: typeof model.name === 'string' && model.name ? model.name : id,
+          provider,
+          available,
+          chat: supportsChat(provider, model),
+        });
+      }
+      return {
+        models: [...models.values()].sort((left, right) => left.label.localeCompare(right.label)),
+        error: available ? undefined : missingKey,
+      };
+    } catch (error) {
+      return { models: [], error: error.message };
+    }
+  }
+
+  async function catalog() {
+    if (cachedCatalog && Date.now() < expiresAt) return cachedCatalog;
+    pendingCatalog ??= Promise.all([list(OPENAI), list(OPENROUTER)])
+      .then(([openai, openrouter]) => {
+        const errors = {};
+        if (openai.error) errors.openai = openai.error;
+        if (openrouter.error) errors.openrouter = openrouter.error;
+        cachedCatalog = { models: [...openai.models, ...openrouter.models], errors };
+        expiresAt = Date.now() + (Object.keys(errors).length ? 20_000 : 300_000);
+        return cachedCatalog;
+      })
+      .finally(() => { pendingCatalog = undefined; });
+    return pendingCatalog;
+  }
+
+  async function chat({ provider, model, system, messages }) {
+    if (provider !== OPENAI && provider !== OPENROUTER) throw requestError('Choose a model provider.', 400);
+    if (provider === OPENROUTER && requiresDirectModel(model)) {
+      throw requestError('Choose a direct OpenAI model or a specific OpenRouter model.', 400);
+    }
+    if (!keys[provider]) throw requestError(`Configure a ${LABELS[provider]} API key to send messages.`, 503);
+
+    const { models, errors } = await catalog();
+    if (errors[provider]) throw requestError(errors[provider], 503);
+    const selected = models.find(entry => entry.provider === provider && entry.id === model);
+    if (!selected) throw requestError('Choose a model from this provider’s catalog.', 400);
+    if (!selected.chat) throw requestError('This model is unavailable for text chat.', 400);
+
+    const chatMessages = system ? [{ role: 'system', content: system }, ...messages] : messages;
+    const audioChat = provider === OPENAI && /^(?:gpt-audio|gpt-4o(?:-mini)?-audio)(?:-|$)/.test(model);
+    let responses = provider === OPENAI && !audioChat;
+    let result = responses
+      ? await call(provider, '/responses', { model, input: messages, store: false, ...(system && { instructions: system }) })
+      : await call(provider, '/chat/completions', {
+        model, messages: chatMessages, ...(audioChat && { modalities: ['text'], store: false }),
+      });
+    if (responses && !result.ok && needsChatCompletions(result.status, result.data?.error)) {
+      responses = false;
+      result = await call(provider, '/chat/completions', { model, messages: chatMessages, store: false });
+    }
+
+    if (!result.ok || result.data?.error) {
+      throw upstreamError(provider, result.ok ? Number(result.data?.error?.code) : result.status);
+    }
+    const text = result.data && replyText(result.data, responses);
+    if (typeof text !== 'string' || !text.trim()) {
+      throw requestError(`${LABELS[provider]} returned no text for this request.`, 502);
+    }
+    return text;
+  }
+
+  return { catalog, chat };
 }

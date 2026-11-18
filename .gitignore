@@ -1,5 +1,7 @@
-data/
-eval-results/
 .credentials
 .env
+.env.*
+node_modules/
+data/
+eval-results/
 *.tmp

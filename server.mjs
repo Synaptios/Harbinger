@@ -1,176 +1,115 @@
-import { createServer } from 'node:http';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { GameError, createGame, playTurn, publicGame } from './engine.mjs';
-import { makeProviders } from './providers.mjs';
+import { readFile } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
+import { pathToFileURL } from 'node:url';
+import { createProviders } from './providers.mjs';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const files = new Map([
+const STATIC_FILES = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
-  ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
-  ['/harbor.webp', ['harbor.webp', 'image/webp']],
+  ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
 ]);
+const MAX_BODY_BYTES = 1024 * 1024;
 
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const activeTurns = new Set();
-
-function json(response, status, value) {
+function json(response, status, data) {
   response.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
   });
-  response.end(JSON.stringify(value));
+  response.end(JSON.stringify(data));
 }
 
-async function readBody(request) {
-  if (request.headers['content-type']?.split(';', 1)[0].trim() !== 'application/json') {
-    throw new GameError('invalid_request', 'Send a JSON request.', 415);
+function invalid(message, status = 400) {
+  return Object.assign(new Error(message), { status });
+}
+
+async function readChat(request) {
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) {
+    throw invalid('Send a JSON request.', 415);
   }
-  let size = 0;
+
   const chunks = [];
-  for await (const chunk of request) {
+  let size = 0;
+  for await (const chunk of request.iterator({ destroyOnReturn: false })) {
     size += chunk.length;
-    if (size <= 8192) chunks.push(chunk);
+    if (size > MAX_BODY_BYTES) {
+      request.resume();
+      throw invalid('This conversation is too long to send. Start a new chat.', 413);
+    }
+    chunks.push(chunk);
   }
-  if (size > 8192) throw new GameError('invalid_request', 'Request is too long.', 413);
+
+  let body;
   try {
-    const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    if (!body || Array.isArray(body) || typeof body !== 'object') throw new Error();
-    return body;
+    body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
-    throw new GameError('invalid_request', 'Send a JSON object.');
+    throw invalid('Send valid JSON.');
   }
+
+  const { provider, model, system = '', messages } = body ?? {};
+  if (!['openai', 'openrouter'].includes(provider) || typeof model !== 'string' || !model) {
+    throw invalid('Choose a model first.');
+  }
+  if (typeof system !== 'string' || !Array.isArray(messages) || messages.length === 0) {
+    throw invalid('Provide a valid system prompt and message history.');
+  }
+  if (messages.some((message, index) => (
+    message?.role !== (index % 2 === 0 ? 'user' : 'assistant')
+    || typeof message.content !== 'string' || !message.content.trim()
+  )) || messages.at(-1).role !== 'user') {
+    throw invalid('Conversation messages must alternate and end with a user message.');
+  }
+  return {
+    provider,
+    model,
+    system,
+    messages: messages.map(({ role, content }) => ({ role, content })),
+  };
 }
 
-async function saveGame(dataDir, game) {
-  const path = join(dataDir, `${game.id}.json`);
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporary, JSON.stringify(game), { flag: 'wx', mode: 0o600, flush: true });
-    await rename(temporary, path);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
-
-async function loadGame(dataDir, id) {
-  try {
-    return JSON.parse(await readFile(join(dataDir, `${id}.json`), 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') throw new GameError('not_found', 'This save could not be found.', 404);
-    throw error;
-  }
-}
-
-function actionRequest(body, catalog) {
-  const { model, revision, requestId } = body;
-  const action = typeof body.action === 'string' ? body.action.trim() : '';
-  if (!action || action.length > 1500 || !Number.isSafeInteger(revision) || revision < 0
-    || typeof requestId !== 'string' || !uuid.test(requestId)) {
-    throw new GameError('invalid_request', 'Enter an action up to 1,500 characters and retry.');
-  }
-  const selected = catalog.models.find(({ id }) => id === model);
-  if (!selected) throw new GameError('invalid_model', 'Choose a narrator from the list.');
-  return { action, model, revision, requestId, available: selected.available };
-}
-
-export async function makeServer({
-  dataDir = process.env.BELLWETHER_DATA_DIR || join(here, 'data'), providers = makeProviders(),
-} = {}) {
-  await mkdir(dataDir, { recursive: true, mode: 0o700 });
-  return createServer(async (request, response) => {
+export function createServer({ providers = createProviders() } = {}) {
+  return createHttpServer(async (request, response) => {
     try {
-      const path = new URL(request.url, 'http://localhost').pathname;
-      const method = request.method;
-      if ((method === 'GET' || method === 'HEAD') && files.has(path)) {
-        const [filename, type] = files.get(path);
-        let data;
-        try {
-          data = await readFile(join(here, 'public', filename));
-        } catch (error) {
-          if (error.code === 'ENOENT') throw new GameError('not_found', 'Page asset not found.', 404);
-          throw error;
-        }
+      if (!/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(request.headers.host ?? '')) {
+        json(response, 403, { error: 'Open Harbinger on localhost.' });
+        return;
+      }
+      const path = new URL(request.url, 'http://127.0.0.1').pathname;
+      if (request.method === 'GET' && path === '/api/models') {
+        json(response, 200, await providers.catalog());
+        return;
+      }
+      if (request.method === 'POST' && path === '/api/chat') {
+        const message = await providers.chat(await readChat(request));
+        json(response, 200, { message });
+        return;
+      }
+
+      const asset = STATIC_FILES.get(path);
+      if (asset && (request.method === 'GET' || request.method === 'HEAD')) {
+        const [file, contentType] = asset;
+        const contents = await readFile(new URL(`./public/${file}`, import.meta.url));
         response.writeHead(200, {
-          'Content-Type': type, 'Content-Length': data.length,
-          'Cache-Control': path === '/harbor.webp' ? 'public, max-age=3600' : 'no-cache',
+          'Content-Type': contentType,
+          'Content-Length': contents.length,
           'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
         });
-        response.end(method === 'HEAD' ? undefined : data);
+        response.end(request.method === 'HEAD' ? undefined : contents);
         return;
       }
-      if (method === 'GET' && path === '/api/models') {
-        json(response, 200, providers.catalog());
-        return;
-      }
-      if (method === 'POST' && request.headers.origin) {
-        if (URL.parse(request.headers.origin)?.host !== request.headers.host) {
-          throw new GameError('forbidden', 'Open the game on the same address as its API.', 403);
-        }
-      }
-      if (method === 'POST' && path === '/api/games') {
-        await readBody(request);
-        const game = createGame();
-        await saveGame(dataDir, game);
-        json(response, 201, { game: publicGame(game) });
-        return;
-      }
-      const match = path.match(/^\/api\/games\/([^/]+)(\/turns)?$/);
-      if (match && uuid.test(match[1])) {
-        const [, id, turns] = match;
-        if (method === 'GET' && !turns) {
-          json(response, 200, { game: publicGame(await loadGame(dataDir, id)) });
-          return;
-        }
-        if (method === 'POST' && turns) {
-          const input = actionRequest(await readBody(request), providers.catalog());
-          const lock = join(dataDir, id);
-          if (activeTurns.has(lock)) throw new GameError('busy', 'Another action is still resolving.', 409);
-          activeTurns.add(lock);
-          try {
-            const game = await loadGame(dataDir, id);
-            const prior = game.turns.find((turn) => turn.requestId === input.requestId);
-            if (prior) {
-              if (prior.action !== input.action || prior.model !== input.model) {
-                throw new GameError('revision_conflict', 'This action ID has already been used.', 409);
-              }
-              json(response, 200, { game: publicGame(game) });
-              return;
-            }
-            if (game.revision !== input.revision) {
-              throw new GameError('revision_conflict', 'The save advanced in another tab. Reloaded the latest turn.', 409);
-            }
-            if (!input.available) {
-              throw new GameError('model_unavailable', 'This narrator requires its provider key on the server.', 503);
-            }
-            const updated = await playTurn(game, input, providers);
-            await saveGame(dataDir, updated);
-            json(response, 200, { game: publicGame(updated) });
-          } finally {
-            activeTurns.delete(lock);
-          }
-          return;
-        }
-      }
-      throw new GameError('not_found', 'That page could not be found.', 404);
+      json(response, 404, { error: 'Page not found.' });
     } catch (error) {
-      if (Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 && error.code) {
-        json(response, error.status, { error: error.message, code: error.code });
-      } else {
-        console.error('Unexpected game server error:', error.name, error.code ?? '');
-        json(response, 500, { error: 'The game could not finish that request.', code: 'server_error' });
-      }
+      if (response.destroyed) return;
+      const status = Number.isInteger(error.status) ? error.status : 500;
+      json(response, status, { error: status === 500 ? 'The server could not finish the request.' : error.message });
     }
   });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const port = process.env.PORT ? Number(process.env.PORT) : 4173;
-  const server = await makeServer();
-  server.listen(port, '127.0.0.1', () => {
-    console.log(`Bellwether is ready at http://127.0.0.1:${server.address().port}`);
+  const server = createServer();
+  server.listen(Number(process.env.PORT ?? 4173), '127.0.0.1', () => {
+    console.log(`Harbinger is ready at http://127.0.0.1:${server.address().port}`);
   });
 }
