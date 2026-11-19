@@ -1,5 +1,6 @@
 import { advanceAgenda, selectInspectionConsequence } from './director.mjs';
 import { conversationChoices, initialKnowledge, visibleObservations } from './knowledge.mjs';
+import { generatedChoices, generatedScene } from './generated.mjs';
 
 export const title = 'The Bread Ledger';
 export const worldVersion = 'malory-everymans-book-xxi.v1';
@@ -128,7 +129,7 @@ function visit(state, scene, playerText) {
   const view = scenes[scene];
   const passageId = 'passage-' + state.passages.length;
   state.scene = scene;
-  state.passages.push({ id: passageId, ...view, playerText });
+  state.passages.push({ id: passageId, ...view, playerText, sceneId: scene, minute: state.minute });
   for (const { confirms, ...observation } of [view.observation, ...(view.additionalObservations ?? [])]) {
     const prior = confirms && state.observations.findLast(item => item.topic === confirms && item.status === 'reported');
     state.observations.push({
@@ -165,6 +166,9 @@ export function startEpisode() {
 
 export function playFixedTurn(state, text) {
   const current = scenes[state.scene];
+  if (!current && generatedScene(state)) {
+    return { clarification: 'This storehouse only opens onto the path to the Thames landing.' };
+  }
   const choice = current.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
   if (!choice) {
     return { clarification: current.choices.length ? 'Choose the available action to continue this route.' : 'This story has reached an ending.' };
@@ -180,7 +184,8 @@ export function playFixedTurn(state, text) {
 
 export function playerView(save) {
   const { state } = save;
-  const { heading, location, time, choices } = scenes[state.scene];
+  const { heading, location, time, choices } = scenes[state.scene] ?? generatedScene(state);
+  const offeredChoices = [...choices, ...conversationChoices(state), ...generatedChoices(state)];
   return {
     id: save.id, name: save.name, revision: save.revision,
     title, worldVersion: state.worldVersion,
@@ -189,6 +194,6 @@ export function playerView(save) {
     passages: state.passages.map(({ id, heading, location, time, playerText, paragraphs }) =>
       ({ id, heading, location, time, playerText, paragraphs })),
     observations: visibleObservations(state, 'player'),
-    choices: [...choices, ...conversationChoices(state)], ended: choices.length === 0,
+    choices: offeredChoices, ended: offeredChoices.length === 0,
   };
 }

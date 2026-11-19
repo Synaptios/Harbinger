@@ -1,0 +1,36 @@
+.testing-toggle {
+  border-color: #d1be8d;
+  padding-inline: .85rem;
+  color: #fff9e5;
+}
+.testing-dialog {
+  width: min(46rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: .5rem;
+  background: var(--paper);
+  color: var(--ink);
+  overscroll-behavior: contain;
+}
+.testing-dialog::backdrop { background: #161b1880; }
+.testing-heading { display: flex; align-items: center; justify-content: space-between; gap: .65rem; }
+.testing-heading h2 { margin: 0; }
+.testing-close { background: transparent; color: var(--green); border-color: #a09579; }
+.testing-warning, .testing-status { color: var(--muted); line-height: 1.6; }
+.testing-warning strong { color: var(--accent); }
+.testing-status:empty { display: none; }
+.testing-sort { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-block: 1rem; font-weight: 650; }
+.testing-sort select { min-height: 44px; padding: .45rem; color: var(--ink); background: #fffcf2; border: 1px solid #817760; border-radius: 5px; font: inherit; }
+.testing-turn { border-block-start: 1px solid var(--line); margin-block-start: 1.1rem; padding-block-start: .85rem; }
+.testing-turn h3 { margin: 0 0 .75rem; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .065em; }
+.testing-thought, .testing-direction { padding: .85rem; margin-block: .6rem; border: 1px solid var(--line); overflow-wrap: anywhere; }
+.testing-direction { background: #ecede1; }
+.testing-actor { display: flex; flex-wrap: wrap; gap: .6rem; align-items: baseline; }
+.testing-actor span { color: var(--muted); font-size: .8rem; }
+.testing-turn h4 { margin: 0; font: bold 1.1rem/1.35 var(--serif); }
+.testing-thought h5 { margin: .65rem 0 .2rem; font-size: .78rem; }
+.testing-turn p, .testing-thought blockquote { margin: .45rem 0 0; line-height: 1.6; }
+.testing-thought blockquote { font-family: var(--serif); }
+.testing-sources { margin: 0; padding-inline-start: 1.05rem; font-size: .84rem; line-height: 1.55; color: var(--muted); }

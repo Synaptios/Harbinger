@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { playerView, startEpisode, title } from './episode.mjs';
 import { openStore } from './store.mjs';
 import { processTurn } from './turns.mjs';
+import { seedThoughts, testingView } from './thoughts.mjs';
 import { createModel, providerFromEnvironment } from './model.mjs';
 import { createSaveHandler, createSaveQueue } from './saves.mjs';
 
@@ -16,6 +17,8 @@ const assets = {
   '/saves.css': ['saves.css', 'text/css; charset=utf-8'],
   '/journal.css': ['journal.css', 'text/css; charset=utf-8'],
   '/journal.js': ['journal.js', 'text/javascript; charset=utf-8'],
+  '/inspector.js': ['inspector.js', 'text/javascript; charset=utf-8'],
+  '/inspector.css': ['inspector.css', 'text/css; charset=utf-8'],
 };
 
 function reply(response, status, data) {
@@ -70,16 +73,17 @@ export function createHarbinger({ databasePath = resolve('.harbinger/bread-ledge
       if (method === 'GET' && pathname === '/api/saves') return reply(response, 200, store.list());
       if (method === 'POST' && pathname === '/api/saves') {
         await readJson(request);
-        return reply(response, 201, playerView(store.create(title, startEpisode())));
+        return reply(response, 201, playerView(store.create(title, seedThoughts(startEpisode()))));
       }
 
       if (await handleSaveRequest(request, response, pathname)) return;
-      const match = pathname.match(/^\/api\/saves\/([a-f0-9-]+)(?:\/(turns|receipt))?$/);
+      const match = pathname.match(/^\/api\/saves\/([a-f0-9-]+)(?:\/(turns|receipt|testing))?$/);
       if (!match) return reply(response, 404, { message: 'Page not found.' });
       const [, id, action] = match;
       const save = store.get(id);
       if (!save) return reply(response, 404, { message: 'Save not found.' });
       if (method === 'GET' && !action) return reply(response, 200, playerView(save));
+      if (method === 'GET' && action === 'testing') return reply(response, 200, testingView(save));
       if (method === 'GET' && action === 'receipt') {
         const requestId = searchParams.get('requestId');
         const committed = requestId?.length <= 128 && Boolean(store.receipt(id, requestId));

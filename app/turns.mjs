@@ -1,6 +1,8 @@
 import { playFixedTurn, playerView } from './episode.mjs';
 import { advanceAgenda } from './director.mjs';
 import { actorContext, matchConversation, playConversation } from './knowledge.mjs';
+import { recordThoughts } from './thoughts.mjs';
+import { playGeneratedTurn } from './generated.mjs';
 
 function fixedIntents(text, choices) {
   const exact = choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
@@ -43,6 +45,7 @@ async function resolveTurn(save, text, model) {
     if (intent?.type === 'choice' && typeof intent.choice === 'string') {
       const scene = playerView({ ...save, state }).scene;
       if (await playConversation(state, intent.choice, scene, model)) continue;
+      if (await playGeneratedTurn(state, intent.choice, model)) continue;
       const result = playFixedTurn(state, intent.choice);
       if (result.clarification) return result;
       state = result.state;
@@ -92,6 +95,7 @@ export async function processTurn(store, id, input, model) {
   }
   const result = await resolveTurn(save, input.text, model);
   if (result.clarification) return { status: 200, body: result };
+  await recordThoughts(save.state, result.state, model, save.revision + 1);
   const committed = store.commit(id, save.revision, result.state, input);
   if (!committed) {
     const receipt = store.receipt(id, input.requestId);

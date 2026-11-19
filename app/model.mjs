@@ -2,7 +2,7 @@ const instructions = {
   interpret: 'Interpret only the protagonist’s requested actions in order. Return an object with an intents array. Allowed intents: {"type":"choice","choice":"exact visible choice"}, {"type":"observe"}, {"type":"take-ledger"}, {"type":"speak","words":"the player’s words"}, or {"type":"unclear"}. Never determine the outcome, change world state, or supply invented dialogue for the protagonist.',
 };
 
-export function createModel({ url, name, key, timeoutMs = 15000 }) {
+export function createModel({ url, name, key, reasoningEffort, timeoutMs = 15000 }) {
   if (!url || !name) throw new Error('Set both HARBINGER_MODEL_URL and HARBINGER_MODEL_NAME.');
   const endpoint = new URL(url);
   if (!['http:', 'https:'].includes(endpoint.protocol)) throw new Error('The model endpoint must use HTTP or HTTPS.');
@@ -17,6 +17,7 @@ export function createModel({ url, name, key, timeoutMs = 15000 }) {
           redirect: 'error',
           body: JSON.stringify({
             model: name,
+            ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
             response_format: { type: 'json_object' },
             messages: [
               { role: 'system', content: instruction + '\nReturn a JSON object.' },
@@ -37,6 +38,9 @@ export function createModel({ url, name, key, timeoutMs = 15000 }) {
 }
 
 export function providerFromEnvironment(env = process.env) {
-  const { HARBINGER_MODEL_URL: url, HARBINGER_MODEL_NAME: name, HARBINGER_MODEL_KEY: key } = env;
-  return url || name ? { url, name, key } : undefined;
+  const {
+    HARBINGER_MODEL_URL: url, HARBINGER_MODEL_NAME: name,
+    HARBINGER_MODEL_KEY: key, HARBINGER_REASONING_EFFORT: reasoningEffort,
+  } = env;
+  return url || name ? { url, name, key, reasoningEffort } : undefined;
 }
