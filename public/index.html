@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>The Bread Ledger · Harbinger</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#reading">Skip to story</a>
+    <header class="top-bar">
+      <div class="top-inner">
+        <span class="brand">Harbinger</span>
+        <span id="save-name" class="save-name"></span>
+        <nav id="workspace-tools" aria-label="Story tools"></nav>
+      </div>
+    </header>
+    <div class="workspace">
+      <main id="reading" tabindex="-1">
+        <section id="opening" class="opening" aria-labelledby="episode-title">
+          <p class="place">London, in the reign of Mordred</p>
+          <h1 id="episode-title">The Bread Ledger</h1>
+          <p class="lede">Alice once stood surety for you. Tonight the guild wants the names in her delivery ledger.</p>
+          <button type="button" id="begin">Begin story</button>
+        </section>
+        <section id="story" aria-label="Story passage" hidden>
+          <header class="story-header">
+            <p class="place" id="scene-location"></p>
+            <h1>The Bread Ledger</h1>
+          </header>
+          <div id="passages"></div>
+          <a id="new-passage" class="jump" hidden>New passage</a>
+          <div id="choices" class="choices" aria-label="Suggested actions"></div>
+          <form id="composer">
+            <label for="action">What do you do?</label>
+            <textarea id="action" name="action" rows="3" maxlength="4000" placeholder="Write an action or speak to someone…"></textarea>
+            <div class="composer-footer">
+              <button type="submit">Continue</button>
+            </div>
+          </form>
+        </section>
+        <p id="status" class="status" role="status"></p>
+      </main>
+      <aside id="workspace-panel" aria-label="Story information" hidden></aside>
+    </div>
+  </body>
+</html>
