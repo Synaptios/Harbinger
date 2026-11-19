@@ -12,6 +12,10 @@ contributes:
     - testing-view
     - capture-save
     - journal-note
+  ui:
+    right:
+      - ./ui/journal.json
+      - ./ui/testing.json
 ---
 
 The Bread Ledger resolves player attempts in the Malory world and publishes the accepted scene.

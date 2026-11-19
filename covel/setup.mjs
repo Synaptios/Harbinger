@@ -28,5 +28,6 @@ if (installedCommit !== covelCommit) throw new Error(`Covel must be checked out 
 const npm = process.env.npm_execpath;
 if (!npm) throw new Error('Use npm run covel:setup.');
 run(process.execPath, [npm, 'install', '--prefix', toolchain, '--no-audit', '--no-fund', 'node@26.12.1', 'pnpm@12.14.0'], data);
-run(pnpm, ['--filter', '@covel/server...', 'install', '--frozen-lockfile', '--ignore-scripts'], checkout);
+run(pnpm, ['--filter', '@covel/server...', '--filter', '@covel/web...', 'install', '--frozen-lockfile', '--ignore-scripts'], checkout);
 run(node, ['scripts/ensure-plugin-sdk.mjs'], checkout);
+run(pnpm, ['--filter', '@covel/web', 'exec', 'vite', 'build'], checkout);

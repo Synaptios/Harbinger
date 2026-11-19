@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 12px; color: var(--covel-foreground, CanvasText); font: 14px/1.5 var(--covel-font-sans, system-ui), system-ui, sans-serif; overflow-wrap: anywhere; }
+  p { margin: 0 0 12px; }
+  button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  button:disabled { opacity: .55; cursor: default; }
+  #status { margin: 8px 0 0; }
+  article { margin-block: 12px; padding-block-start: 10px; border-top: 1px solid var(--covel-border, GrayText); }
+  h2, h3 { font-size: 1em; margin: 0 0 4px; }
+  small { color: var(--covel-muted-foreground, GrayText); }
+</style>
+<p>This panel reveals private character thoughts and story direction.</p>
+<button id="reveal" type="button" aria-expanded="false" aria-controls="reading">Reveal testing view</button>
+<p id="status" role="status"></p>
+<section id="reading" aria-label="Testing details"></section>
+<script>
+  const reveal = document.getElementById('reveal');
+  const status = document.getElementById('status');
+  const reading = document.getElementById('reading');
+  let locked = false;
+  let loading = false;
+  let shown = false;
+
+  function line(tag, text) {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    return node;
+  }
+
+  function updateButton() {
+    reveal.disabled = loading || (locked && !shown);
+    reveal.setAttribute('aria-expanded', String(shown));
+    reveal.textContent = shown ? 'Hide testing view' : 'Reveal testing view';
+  }
+
+  function render({ thoughts, directions }) {
+    const rows = [];
+    if (thoughts.length) rows.push(line('h2', 'Character thoughts'));
+    for (const thought of [...thoughts].reverse()) {
+      const entry = document.createElement('article');
+      entry.append(line('h3', thought.name));
+      entry.append(line('small', `Turn ${thought.turn} · ${thought.presence}`));
+      entry.append(line('p', thought.text));
+      rows.push(entry);
+    }
+    if (directions.length) rows.push(line('h2', 'Director'));
+    for (const direction of [...directions].reverse()) {
+      const entry = document.createElement('article');
+      entry.append(line('h3', direction.situation));
+      entry.append(line('small', `Turn ${direction.turn}`));
+      entry.append(line('p', direction.reason));
+      rows.push(entry);
+    }
+    if (!rows.length) rows.push(line('p', 'No testing details yet.'));
+    reading.replaceChildren(...rows);
+  }
+
+  window.covel.subscribe((state) => {
+    locked = Boolean(state.locked);
+    updateButton();
+  });
+
+  reveal.addEventListener('click', async () => {
+    if (shown) {
+      shown = false;
+      reading.replaceChildren();
+      status.textContent = '';
+      updateButton();
+      return;
+    }
+
+    loading = true;
+    status.textContent = 'Loading testing details…';
+    updateButton();
+    try {
+      const response = await window.covel.invoke('invokePluginAction', { action: 'testing-view' });
+      if (!response?.result?.ok) throw new Error('Testing details unavailable');
+      render(response.result.data);
+      shown = true;
+      status.textContent = 'Private testing details revealed.';
+    } catch {
+      status.textContent = 'Could not load testing details.';
+    } finally {
+      loading = false;
+      updateButton();
+    }
+  });
+</script>
+</html>

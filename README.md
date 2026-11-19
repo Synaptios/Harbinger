@@ -4,15 +4,11 @@ Harbinger is a local interactive story. **The Bread Ledger** follows a London cl
 
 ## Run locally
 
-Use Node 24 or later. Run `npm ci` and `npm start`, then open `http://127.0.0.1:4173`. The app saves story progress to SQLite in `.harbinger/`. Set `HARBINGER_PORT` or `HARBINGER_DATABASE_PATH` to use a different local port or save database.
+Use Node 24 or later. Run `npm ci` and `npm run covel:setup` once, then set the narrator’s provider in your shell or in the gitignored `.env`. For OpenAI, use `HARBINGER_MODEL_URL=https://api.openai.com/v1/responses`, `HARBINGER_MODEL_NAME=gpt-6.2-sol`, and `HARBINGER_REASONING_EFFORT=medium`. Supply `HARBINGER_MODEL_KEY` locally.
 
-Open **Journal** to revisit what the clerk discovered. Use **Saves** to start another story, duplicate current progress, or move a save. **Testing view** reveals private NPC thoughts and director decisions after you opt in.
+Run `npm start` and open `http://127.0.0.1:4174`. Choose **The Bread Ledger** in Covel’s world library. Open an existing game or start a new one and select **Begin Adventure**. Harbinger’s **Journal** and opt-in **Testing view** appear in Covel’s game panels. The Journal shows source labels alongside discoveries. Set `HARBINGER_PORT` to use a different local port.
 
-### Covel opening in development
-
-Run `npm run covel:setup` once, then set the narrator’s provider in your shell or in the gitignored `.env`. For OpenAI, use `HARBINGER_MODEL_URL=https://api.openai.com/v1/responses`, `HARBINGER_MODEL_NAME=gpt-6.2-sol`, and `HARBINGER_REASONING_EFFORT=medium`. Supply `HARBINGER_MODEL_KEY` locally.
-
-Run `npm run start:covel` and open `http://127.0.0.1:4174`. The Covel opening writes to `.harbinger/covel-story.sqlite`, or to `HARBINGER_COVEL_DATABASE_PATH` when configured. Use `npm start` to play or access saves in the current app. The local setup pins Covel v0.0.54 and keeps the upstream MIT license with its checkout.
+The local setup builds Covel’s own web app from the pinned v0.0.54 checkout and keeps the MIT license there. Covel and Harbinger’s compatibility tools use `.harbinger/covel-story.sqlite`, or `HARBINGER_COVEL_DATABASE_PATH` when configured. Stop the Covel web server before running `npm run start:covel-tools` to move or restore a full Harbinger backup. Use `npm run start:legacy` and open `http://127.0.0.1:4173` for saves from the original fixed-response app. It retains its own database and accepts `HARBINGER_DATABASE_PATH` for an override.
 
 ### Editing skill
 
@@ -29,7 +25,7 @@ The expected revision is `aecf2680a56b9b19835a3e362af4ebdd2e8e92f1`. The project
 
 Run `npx playwright install chromium` once, then `npm test`. To use a supported installed browser, set `PLAYWRIGHT_CHANNEL` to its Playwright channel, such as `msedge`.
 
-To exercise the Covel browser suite, run `npm run covel:setup` and set `HARBINGER_TEST_COVEL=1` before running `npm test`. The test uses the pinned runtime and a local, deterministic provider response.
+To exercise the Covel browser suite, run `npm run covel:setup` and set `HARBINGER_TEST_COVEL=1` before running `npm test`. The suite uses the pinned runtime, the native web build, and a deterministic local provider.
 
 For model-enabled free text in the original app, set `HARBINGER_MODEL_URL` to an OpenAI-compatible Chat Completions endpoint that accepts JSON mode and `HARBINGER_MODEL_NAME` to its model ID. Set `HARBINGER_MODEL_KEY` if the endpoint requires a key. For models that accept a reasoning setting, set `HARBINGER_REASONING_EFFORT` as well. Use your environment or the gitignored `.env` file, then restart the app. The authored action buttons also work with the fixed-response engine.
 

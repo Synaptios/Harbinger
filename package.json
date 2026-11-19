@@ -5,8 +5,10 @@
   "type": "module",
   "engines": { "node": ">=24" },
   "scripts": {
-    "start": "node --env-file-if-exists=.env app/server.mjs",
-    "start:covel": "node --env-file-if-exists=.env app/server.mjs --covel",
+    "start": "node --env-file-if-exists=.env covel/start.mjs",
+    "start:covel": "node --env-file-if-exists=.env covel/start.mjs",
+    "start:covel-tools": "node --env-file-if-exists=.env app/server.mjs --covel",
+    "start:legacy": "node --env-file-if-exists=.env app/server.mjs",
     "covel:setup": "node covel/setup.mjs",
     "test": "playwright test"
   },

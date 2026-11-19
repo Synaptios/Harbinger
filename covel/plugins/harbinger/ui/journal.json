@@ -1,0 +1,52 @@
+{
+  "id": "harbinger-journal",
+  "label": "Journal",
+  "shortLabel": "Journal",
+  "icon": "book-open",
+  "groupOrder": 400,
+  "dataSource": { "namespace": "story" },
+  "emptyState": { "message": "Discoveries appear as you play." },
+  "view": {
+    "component": "FilterContainer",
+    "props": {
+      "items": { "$state": "/view/observations" },
+      "itemKeyField": "id",
+      "searchPlaceholder": "Search the Journal",
+      "searchFields": ["title", "text", "source", "status"],
+      "filterField": "status",
+      "filterTabs": [
+        { "value": "all", "label": "All" },
+        { "value": "firsthand", "label": "Firsthand" },
+        { "value": "reported", "label": "Reported" }
+      ],
+      "emptyMessage": "No matching entries",
+      "itemTemplate": {
+        "component": "Card",
+        "props": { "variant": "subtle" },
+        "children": [
+          {
+            "component": "Stack",
+            "children": [
+              {
+                "component": "Text",
+                "props": { "content": { "$item": "title" }, "weight": "bold" }
+              },
+              {
+                "component": "Badge",
+                "props": {
+                  "label": {
+                    "$map": { "$item": "status" },
+                    "labels": { "firsthand": "Firsthand", "reported": "Reported", "disputed": "Disputed" },
+                    "fallback": "Account"
+                  }
+                }
+              },
+              { "component": "Text", "props": { "content": { "$item": "text" } } },
+              { "component": "Source", "props": { "label": { "$item": "source" } } }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

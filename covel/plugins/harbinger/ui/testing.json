@@ -1,0 +1,9 @@
+{
+  "id": "harbinger-testing",
+  "label": "Testing view",
+  "shortLabel": "Testing",
+  "icon": "brain",
+  "groupOrder": 900,
+  "alwaysRender": true,
+  "webview": { "entry": "./testing.html", "height": 360 }
+}

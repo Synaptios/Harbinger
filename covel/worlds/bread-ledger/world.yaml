@@ -5,3 +5,4 @@ defaultLocale: en-US
 summary: A London clerk must choose whose names go into the ledger before dusk.
 plugins:
   - plugin:harbinger
+  - plugin:harbinger-opening

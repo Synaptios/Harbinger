@@ -1,43 +1,8 @@
-import { fork } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { existsSync } from 'node:fs';
 import { nextCopyName } from '../app/saves.mjs';
 import { clarificationPrefix } from '../app/turns.mjs';
 import { validCovelSave } from './saves.mjs';
-
-const project = fileURLToPath(new URL('../', import.meta.url));
-const checkout = join(project, '.harbinger', 'covel');
-const node = join(project, '.harbinger', 'toolchain', 'node_modules', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node');
-
-function launchCovel(databasePath, provider) {
-  if (!existsSync(node) || !existsSync(join(checkout, 'node_modules', 'tsx', 'dist', 'loader.mjs'))) {
-    throw new Error('Run npm run covel:setup before starting Harbinger on Covel.');
-  }
-  if (!provider?.url || !provider?.name) throw new Error('Set HARBINGER_MODEL_URL and HARBINGER_MODEL_NAME.');
-  const loader = pathToFileURL(join(checkout, 'node_modules', 'tsx', 'dist', 'loader.mjs')).href;
-  return fork(join(checkout, 'apps', 'server', 'src', 'index.ts'), [], {
-    cwd: checkout,
-    execPath: node,
-    execArgv: ['--import', loader],
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      STORE_BACKEND: 'sqlite',
-      SQLITE_PATH: resolve(databasePath),
-      SERVER_PORT: '0',
-      COVEL_BIND_HOST: '127.0.0.1',
-      COVEL_HOME: join(dirname(resolve(databasePath)), 'covel-home'),
-      COVEL_PLUGINS_DIR: join(project, 'covel', 'plugins'),
-      COVEL_WORLDS_DIR: join(project, 'covel', 'worlds'),
-      HARBINGER_MODEL_URL: provider.url,
-      HARBINGER_MODEL_NAME: provider.name,
-      HARBINGER_MODEL_KEY: provider.key ?? '',
-      HARBINGER_REASONING_EFFORT: provider.reasoningEffort ?? '',
-    },
-  });
-}
+import { launchCovel } from './runtime.mjs';
 
 function failure(message, status) {
   return Object.assign(new Error(message), { status });
@@ -48,7 +13,7 @@ function inputId(sessionId, requestId) {
 }
 
 export function createCovelBridge({ databasePath, provider }) {
-  const child = launchCovel(databasePath, provider);
+  const child = launchCovel({ databasePath, provider });
   const closed = new Promise(resolve => child.once('exit', resolve));
   const ready = new Promise((resolve, reject) => {
     child.once('error', reject);
@@ -106,7 +71,9 @@ export function createCovelBridge({ databasePath, provider }) {
 
   async function newSession() {
     const id = randomUUID();
-    await call('/api/sessions', { id, worldId: 'bread-ledger', locale: 'en-US', plugins: ['harbinger'] });
+    await call('/api/sessions', {
+      id, worldId: 'bread-ledger', locale: 'en-US', plugins: ['harbinger'], excludedPlugins: ['harbinger-opening'],
+    });
     return id;
   }
 
@@ -140,7 +107,9 @@ export function createCovelBridge({ databasePath, provider }) {
     await call(`/api/sessions/${id}/plugin-rpc`, {
       kind: 'runtime', pluginId: 'harbinger', runtimeId: 'harbinger/restore', payload: bundle,
     });
-    return read(id);
+    const restored = await read(id);
+    await runAction(id, 'start_session', randomUUID());
+    return restored;
   }
 
   return {
