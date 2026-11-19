@@ -10,7 +10,7 @@ const concerns = {
 const sharedConcern = (left, right) => Object.values(concerns).some(ids => ids.includes(left.id) && ids.includes(right.id));
 const sharedActor = (left, right) => [left.sponsor, left.witness].some(id => [right.sponsor, right.witness].includes(id));
 
-export function dramaticNextCases(state, current) {
+function dramaticNextCases(state, current) {
   const { chapter, decision } = state.campaign;
   const last = state.records.findLast(event => event.type === 'campaign-act' && event.chapter === chapter);
   const recent = state.records.filter(event => event.type === 'campaign-opened').slice(-6).map(event => event.caseId);

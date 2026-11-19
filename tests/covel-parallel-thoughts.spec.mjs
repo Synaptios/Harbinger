@@ -38,21 +38,13 @@ test('the cast chooses private thoughts in parallel and the public passage conta
     response.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(reply) }, finish_reason: 'stop' }] }));
   });
   let covel;
-  let stopped;
   try {
     fixture.listen(0, '127.0.0.1');
     await once(fixture, 'listening');
     const origin = `http://127.0.0.1:${fixture.address().port}`;
     covel = launchCovel({ databasePath: join(directory, 'story.sqlite'), web: true,
       provider: { url: `${origin}/v1/chat/completions`, name: 'thought-overlap-fixture', key: 'fixture-key' } });
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel exited (${code})`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     const catalog = await (await request.get(`${url}/api/plugins`)).json();
     const plugins = ['harbinger'];
     const excludedPlugins = catalog.items.map(plugin => plugin.id).filter(id => !plugins.includes(id));
@@ -106,8 +98,7 @@ test('the cast chooses private thoughts in parallel and the public passage conta
     });
   } finally {
     thoughtGate.resolve();
-    if (covel && covel.exitCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => { fixture.close(resolve); fixture.closeAllConnections(); });
     await rm(directory, { force: true, recursive: true });
   }

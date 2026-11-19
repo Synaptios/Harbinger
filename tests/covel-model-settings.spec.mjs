@@ -1,13 +1,13 @@
 import { once } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { getStoryModelSettings, storyModelProvider, updateStoryModelSettings } from '../covel/model-settings.mjs';
+import { storyModelProvider } from '../covel/model-settings.mjs';
 import { requestStoryObject } from '../covel/narrator.mjs';
 
-test('Harbinger switches provider and credentials without persisting secrets', async () => {
+test('Harbinger preserves saved provider, model and reasoning choices from the previous Settings', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'harbinger-model-settings-'));
   const path = join(directory, 'model-settings.json');
   const env = {
@@ -23,19 +23,12 @@ test('Harbinger switches provider and credentials without persisting secrets', a
       id: 'openai', url: env.HARBINGER_MODEL_URL, name: 'gpt-6.2-sol', key: 'direct-api-key',
     });
     const selection = { provider: 'openrouter', model: 'openai/gpt-6.2-sol', reasoningEffort: 'high' };
-    const visible = updateStoryModelSettings(selection, env);
-    expect(visible).toMatchObject(selection);
-    expect(visible.providers).toEqual([
-      expect.objectContaining({ id: 'openai', origin: 'https://api.openai.com', credentialConfigured: true }),
-      expect.objectContaining({ id: 'openrouter', origin: 'https://openrouter.ai', credentialConfigured: true }),
-    ]);
-    expect(JSON.stringify(visible)).not.toMatch(/api-key|token=private/u);
-    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual(selection);
+    await writeFile(path, JSON.stringify(selection));
     expect(storyModelProvider({ ...env })).toEqual({
       id: 'openrouter', url: 'https://openrouter.ai/api/v1/chat/completions',
       name: 'openai/gpt-6.2-sol', key: 'router-api-key', reasoningEffort: 'high',
     });
-    updateStoryModelSettings({ provider: 'openai', model: 'gpt-6.2-sol', reasoningEffort: null }, env);
+    await writeFile(path, JSON.stringify({ provider: 'openai', model: 'gpt-6.2-sol', reasoningEffort: null }));
     expect(storyModelProvider(env)).toEqual({
       id: 'openai', url: 'https://api.openai.com/v1/responses',
       name: 'gpt-6.2-sol', key: 'direct-api-key', reasoningEffort: null,
@@ -45,7 +38,7 @@ test('Harbinger switches provider and credentials without persisting secrets', a
   }
 });
 
-test('Harbinger leaves the current custom endpoint in place when an update is invalid', async () => {
+test('Harbinger ignores invalid historical preferences and uses the startup endpoint', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'harbinger-model-settings-'));
   const env = {
     HARBINGER_MODEL_URL: 'http://localhost:8080/chat/completions',
@@ -54,14 +47,9 @@ test('Harbinger leaves the current custom endpoint in place when an update is in
     HARBINGER_MODEL_SETTINGS_PATH: join(directory, 'model-settings.json'),
   };
   try {
-    const current = getStoryModelSettings(env);
-    expect(current).toMatchObject({ provider: 'custom', model: 'local-model', reasoningEffort: null });
-    expect(() => updateStoryModelSettings({ provider: 'openai', model: 'gpt-6.2-sol', reasoningEffort: null }, env))
-      .toThrow(/An API key for OpenAI is required/u);
-    expect(() => updateStoryModelSettings({
+    await writeFile(env.HARBINGER_MODEL_SETTINGS_PATH, JSON.stringify({
       provider: 'custom', model: 'local-model', reasoningEffort: null, url: 'https://different.example/completions',
-    }, env)).toThrow(/Send only a provider, model, and reasoning effort/u);
-    expect(getStoryModelSettings(env)).toEqual(current);
+    }));
     expect(storyModelProvider(env)).toMatchObject({ id: 'custom', url: env.HARBINGER_MODEL_URL, key: 'local-api-key' });
   } finally {
     await rm(directory, { recursive: true, force: true });

@@ -33,7 +33,7 @@ The revised guidance follows the player’s immediate move further, keeps quiet 
 
 The complete local episode and the passages are available for the player’s own verdict. [Full-episode acceptance issue](https://github.com/Synaptios/Harbinger/issues/11)
 
-With the Covel runtime set up and the OpenAI key available in the process environment or the local `.env`, run `node --env-file-if-exists=.env scripts/covel-playtest.mjs` for a fresh scripted comparison.
+For a fresh native playtest, use the [Voyage release check](#voyage-lineup-release-check) or the [NovelOS review](#fifty-turn-novelos-review).
 
 ## Voyage lineup release check
 

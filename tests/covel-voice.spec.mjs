@@ -87,7 +87,6 @@ test('committed Bread Ledger speech is detached, cast-voiced, and opt-in for pla
   });
 
   let covel;
-  let stopped;
   try {
     provider.listen(0, '127.0.0.1');
     await once(provider, 'listening');
@@ -110,14 +109,7 @@ test('committed Bread Ledger speech is detached, cast-voiced, and opt-in for pla
       if (previousConfig === undefined) delete process.env.COVEL_LLM_TOML;
       else process.env.COVEL_LLM_TOML = previousConfig;
     }
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel stopped before start (${code}).`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     await page.addInitScript(() => {
       if (window !== window.top || localStorage.getItem('covel:settings')) return;
       localStorage.setItem('covel:settings', JSON.stringify({
@@ -231,8 +223,7 @@ test('committed Bread Ledger speech is detached, cast-voiced, and opt-in for pla
     });
   } finally {
     releaseSpeech();
-    if (covel && covel.exitCode === null) covel.kill();
-    if (stopped) await stopped;
+    await covel?.stop();
     await new Promise(resolve => provider.close(resolve));
     await rm(directory, { recursive: true, force: true });
   }

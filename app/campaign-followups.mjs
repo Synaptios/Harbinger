@@ -82,7 +82,7 @@ const disposition = {
 const caseRecord = record => record.type === 'campaign-act' && record.step === 3
   && Object.hasOwn(disposition, record.outcome) && byId.has(record.caseId);
 
-export const campaignFollowupId = chapter => 'campaign-followup:' + chapter;
+const campaignFollowupId = chapter => 'campaign-followup:' + chapter;
 
 function followupChapter(id) {
   if (typeof id !== 'string' || !/^campaign-followup:[1-9][0-9]*$/u.test(id)) return;

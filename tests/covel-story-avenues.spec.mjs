@@ -133,6 +133,27 @@ test('a committed spoken turn still reaches a due review after a character provi
   expect(game.save().state.pacing).toMatchObject({ turn: 10, active: { id: bread.id } });
 });
 
+test('canceling during passage composition leaves the committed save and Journal unchanged', async () => {
+  const game = fixture('canceled-passage');
+  await game.play();
+  const before = game.capture();
+  const publicView = game.publicView();
+  const action = 'Go with Alice to the river';
+  const context = game.context([action]);
+  const controller = new AbortController();
+  const canceled = new Error('The player canceled this turn.');
+  const generate = context.gateway.generateObject;
+  context.gateway.generateObject = async request => {
+    const result = await generate(request);
+    if (request.presetId === 'character' && 'index' in request.schema.properties) controller.abort(canceled);
+    return result;
+  };
+
+  await expect(story({ ...context, signal: controller.signal })).rejects.toBe(canceled);
+  expect(game.capture()).toEqual(before);
+  expect(game.publicView()).toEqual(publicView);
+});
+
 test('a selected avenue produces its later beats after a portable reload and preserves the player’s choices', async () => {
   const game = fixture('pacing-original');
   await game.play();

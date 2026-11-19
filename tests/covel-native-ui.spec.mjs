@@ -59,7 +59,6 @@ test('Covel’s AI roles change the next Character and State requests and preser
   });
 
   let covel;
-  let stopped;
   try {
     provider.listen(0, '127.0.0.1');
     await once(provider, 'listening');
@@ -75,14 +74,7 @@ test('Covel’s AI roles change the next Character and State requests and preser
       port: 0,
       web: true,
     });
-    stopped = new Promise(resolve => covel.once('exit', resolve));
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel exited before starting (${code}).`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
 
     await page.addInitScript(() => {
       if (window !== window.top || localStorage.getItem('covel:settings')) return;
@@ -226,8 +218,7 @@ test('Covel’s AI roles change the next Character and State requests and preser
     await testing.getByRole('button', { name: 'Reveal testing view' }).click();
     await expect(testing.getByText(privateThought, { exact: false }).first()).toBeVisible();
   } finally {
-    if (covel && covel.exitCode === null && covel.signalCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => {
       provider.close(resolve);
       provider.closeAllConnections();

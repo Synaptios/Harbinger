@@ -36,20 +36,12 @@ test('a staged Voyage lineup boots the approved defaults and preserves Previous 
   };
   const original = Object.fromEntries([...Object.keys(environment), 'COVEL_LLM_TOML'].map(key => [key, process.env[key]]));
   let covel;
-  let stopped;
   try {
     await promisify(execFile)(process.execPath, ['scripts/covel-stage-voyage.mjs', database, candidate], { env: { ...process.env, ...environment } });
     Object.assign(process.env, environment, { COVEL_LLM_TOML: candidate });
     covel = launchCovel({ databasePath: database, web: true,
       provider: { url: environment.HARBINGER_MODEL_URL, name: environment.HARBINGER_MODEL_NAME, key: environment.HARBINGER_MODEL_KEY } });
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel exited (${code})`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     const { slots } = await (await request.get(`${url}/api/llm-config`)).json();
     expect(slots).toMatchObject({
       story: { provider: 'inworld', model: 'inworld/models/GLM-5.3-Flash' },
@@ -69,8 +61,7 @@ test('a staged Voyage lineup boots the approved defaults and preserves Previous 
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
-    if (covel && covel.exitCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
     await rm(directory, { force: true, recursive: true });
   }

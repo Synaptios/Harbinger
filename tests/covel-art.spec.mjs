@@ -42,7 +42,6 @@ test('first-reveal art appears after the story commits and reuses stable identit
     res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }));
   });
   let child;
-  let closed;
   try {
     fixture.listen(0, '127.0.0.1');
     await once(fixture, 'listening');
@@ -66,12 +65,7 @@ test('first-reveal art appears after the story commits and reuses stable identit
         else process.env[name] = value;
       }
     }
-    closed = new Promise(resolve => child.once('exit', resolve));
-    const url = await new Promise((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', code => reject(new Error(`Covel exited while starting (${code}).`)));
-      child.on('message', message => { if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`); });
-    });
+    const url = await child.ready;
     await page.addInitScript(() => {
       if (window !== window.top || localStorage.getItem('covel:settings')) return;
       localStorage.setItem('covel:settings', JSON.stringify({
@@ -116,8 +110,7 @@ test('first-reveal art appears after the story commits and reuses stable identit
     await expect(sprites.getByRole('img', { name: 'Alice', exact: true })).toHaveJSProperty('naturalWidth', 1);
   } finally {
     finishArt();
-    if (child?.exitCode === null && child.signalCode === null) child.kill();
-    await closed;
+    await child?.stop();
     fixture.closeAllConnections();
     await new Promise(resolve => fixture.close(resolve));
     await rm(directory, { recursive: true, force: true });

@@ -30,18 +30,10 @@ test('the saved story preserves the order and attribution of a private conversat
   await once(provider, 'listening');
   const origin = `http://127.0.0.1:${provider.address().port}`;
   let covel;
-  let stopped;
   try {
     covel = launchCovel({ databasePath: join(directory, 'story.sqlite'), web: true,
       provider: { url: `${origin}/v1/chat/completions`, name: 'scene-brief-fixture', key: 'test-key' } });
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel exited (${code})`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     const plugins = ['harbinger'];
     const catalog = await (await request.get(`${url}/api/plugins`)).json();
     const excludedPlugins = catalog.items.map(plugin => plugin.id).filter(id => !plugins.includes(id));
@@ -84,8 +76,7 @@ test('the saved story preserves the order and attribution of a private conversat
       expect.objectContaining({ text: expect.stringContaining(report), source: 'Alice', status: 'reported', passageId: currentPassage.id }),
     ]));
   } finally {
-    if (covel && covel.exitCode === null && covel.signalCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => { provider.close(resolve); provider.closeAllConnections(); });
     await rm(directory, { recursive: true, force: true });
   }

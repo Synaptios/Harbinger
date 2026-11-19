@@ -231,24 +231,6 @@ export async function startFixture(directory) {
   return { server, toml, provider: { url: baseUrl + '/chat/completions', name: 'fixture', key: 'fixture' } };
 }
 
-export async function ready(child) {
-  return new Promise((resolveReady, reject) => {
-    const fail = () => {
-      clearTimeout(timer);
-      reject(new BenchmarkError('Isolated Covel did not start.'));
-    };
-    const timer = setTimeout(fail, 30_000);
-    child.once('error', fail);
-    child.once('close', fail);
-    child.on('message', message => {
-      if (message?.type === 'covel:ready') {
-        clearTimeout(timer);
-        resolveReady('http://127.0.0.1:' + message.port);
-      }
-    });
-  });
-}
-
 function clientAt(url, reportStalls) {
   return async (path, data) => {
     const response = await fetch(url + path, {
@@ -419,10 +401,10 @@ async function playIsolated(temporary, route, profile, provider, reportStalls) {
   await mkdir(directory);
   // Covel permits 30 action and 30 plugin RPC posts per minute per server.
   // Each ten-turn playthrough gets an independent game process and database.
-  const child = launchCovel({ databasePath: join(directory, 'playtest.sqlite'), provider, web: true, reportStalls });
-  const closed = new Promise(resolveClose => child.once('close', resolveClose));
+  const runtime = launchCovel({ databasePath: join(directory, 'playtest.sqlite'), provider, web: true, reportStalls });
   try {
-    const call = clientAt(await ready(child), reportStalls);
+    const url = await runtime.ready.catch(() => { throw new BenchmarkError('Isolated Covel did not start.'); });
+    const call = clientAt(url, reportStalls);
     const [catalog, config] = await Promise.all(['/api/plugins', '/api/llm-config'].map(path =>
       call(path).then(response => response.json())));
     const style = await play(call, catalog.items, route, profile);
@@ -435,8 +417,7 @@ async function playIsolated(temporary, route, profile, provider, reportStalls) {
     return { id: route.id, label: route.label, turns: [], ended: false,
       failure: { turn: 0, message: error instanceof BenchmarkError ? error.message : 'Could not initialize an isolated style.' } };
   } finally {
-    if (child.exitCode === null && child.signalCode === null) child.kill();
-    await closed;
+    await runtime.stop();
   }
 }
 

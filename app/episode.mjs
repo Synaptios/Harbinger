@@ -1,7 +1,7 @@
 import { advanceAgenda, honorMeeting, offeredMeetings, selectInspectionConsequence, timeOfDay } from './director.mjs';
 import { conversationChoices, initialKnowledge, visibleObservations } from './knowledge.mjs';
 import { generatedChoices, generatedScene } from './generated.mjs';
-import { campaignPublic, campaignScene, campaignStart, campaignTime, campaignTurn, openDramaticChapter, startCampaign } from './campaign.mjs';
+import { campaignLocation, campaignStart, campaignTime, campaignTurn, campaignView, openDramaticChapter, startCampaign } from './campaign.mjs';
 
 export const title = 'The Bread Ledger';
 export const worldVersion = 'malory-everymans-book-xxi.v1';
@@ -227,7 +227,7 @@ export function playFixedTurn(state, text, chooseInspection) {
   const current = scenes[state.scene];
   const continued = campaignTurn(state, text, current?.choices.length === 0);
   if (continued) return continued;
-  if (!current && campaignScene(state)) {
+  if (!current && campaignLocation(state)) {
     return { clarification: 'Choose how to take up the matter here.' };
   }
   if (!current && generatedScene(state)) {
@@ -275,8 +275,8 @@ export function playFixedTurn(state, text, chooseInspection) {
 
 export function playerView(save) {
   const { state } = save;
-  const continuation = campaignPublic(state);
-  const { heading, location, choices } = scenes[state.scene] ?? generatedScene(state) ?? campaignScene(state);
+  const { scene: campaignScene, campaign: continuation } = campaignView(state) ?? {};
+  const { heading, location, choices } = scenes[state.scene] ?? generatedScene(state) ?? campaignScene;
   const authoredChoices = choices.filter(choice => choice !== 'Give Martin the names' || state.pending.some(event => event.type === 'inspection'));
   const appointments = authoredChoices.length ? offeredMeetings(state).map(item => item.label) : [];
   const offeredChoices = [...authoredChoices, ...conversationChoices(state), ...generatedChoices(state), ...appointments];

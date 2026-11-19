@@ -84,18 +84,11 @@ test('Character tiers route requests by latency and the next turn uses the updat
   };
   const original = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
   let covel;
-  let stopped;
   try {
     Object.assign(process.env, env);
     covel = launchCovel({ databasePath: join(directory, 'story.sqlite'), web: true,
       provider: { url: `${fixture}/legacy/v1/chat/completions`, name: 'legacy-test', key: 'legacy-test-key' } });
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     const quote = data => page.request.post(`${url}/api/harbinger/model-route`, { data });
     expect(await (await quote({ model: 'glm-5.3-flash' })).json()).toMatchObject({
       provider: 'inworld', latency: { p50Ms: 40, p95Ms: 62 },
@@ -182,8 +175,7 @@ test('Character tiers route requests by latency and the next turn uses the updat
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
-    if (covel && covel.exitCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => {
       server.close(resolve);
       server.closeAllConnections();

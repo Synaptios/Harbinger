@@ -6,7 +6,6 @@ import { playGeneratedTurn } from './generated.mjs';
 import { stalledModelResult } from './model.mjs';
 import { campaignTime } from './campaign.mjs';
 
-export const clarificationPrefix = 'Harbinger clarification: ';
 
 const quotation = /(“[^”]*”|"[^"]*")/u;
 const spokenFraming = /^\s*(?:i\s+)?(?:say|ask|tell|answer|address|greet|thank|call|speak|whisper)\b/iu;

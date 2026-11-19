@@ -8,7 +8,7 @@ import { providerFromEnvironment } from '../app/model.mjs';
 import { launchCovel } from '../covel/runtime.mjs';
 import { hydrateStoredStory, storyChunkNamespace } from '../covel/save-storage.mjs';
 import { campaignPlayerAction } from './covel-campaign-profiles.mjs';
-import { configureMemory, ready, startFixture } from './covel-novel-eval.mjs';
+import { configureMemory, startFixture } from './covel-novel-eval.mjs';
 import { playerProfiles } from './covel-player-profiles.mjs';
 
 const worldId = 'bread-ledger';
@@ -282,9 +282,8 @@ async function playProfile(profile, directory, target, first, provider, campaign
   const profileDir = join(directory, profile.id);
   await mkdir(profileDir, { recursive: true });
   const journal = await journalAt(join(profileDir, 'turns.ndjson'));
-  let child;
+  let runtime;
   let reader;
-  let closed;
   try {
     let header = journal.entries[0];
     if (!header) {
@@ -300,9 +299,8 @@ async function playProfile(profile, directory, target, first, provider, campaign
     let roles = existingRoles;
     if (previous.length <= target) {
       const databasePath = join(profileDir, 'playtest.sqlite');
-      child = launchCovel({ databasePath, provider, web: true, reportStalls: true, waitForProviders: true });
-      closed = new Promise(resolveClose => child.once('close', resolveClose));
-      const baseUrl = await ready(child);
+      runtime = launchCovel({ databasePath, provider, web: true, reportStalls: true, waitForProviders: true });
+      const baseUrl = await runtime.ready;
       reader = ledger(databasePath, sessionId);
       if (!reader.session()) {
         if (previous.length) throw new Error('The durable campaign database is missing its saved session.');
@@ -339,8 +337,7 @@ async function playProfile(profile, directory, target, first, provider, campaign
     };
   } finally {
     reader?.close();
-    if (child && child.exitCode === null && child.signalCode === null) child.kill();
-    if (closed) await closed;
+    await runtime?.stop();
     await journal.close();
   }
 }

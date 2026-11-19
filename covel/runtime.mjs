@@ -9,7 +9,10 @@ const project = fileURLToPath(new URL('../', import.meta.url));
 const checkout = join(project, '.harbinger', 'covel');
 const node = join(project, '.harbinger', 'toolchain', 'node_modules', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node');
 
-export function launchCovel({ databasePath, provider, port = 0, web = false, reportStalls = false, waitForProviders = reportStalls }) {
+export function launchCovel({
+  databasePath, provider, port = 0, web = false, reportStalls = false,
+  waitForProviders = reportStalls, readyTimeoutMs = 30_000,
+}) {
   const loaderPath = join(checkout, 'node_modules', 'tsx', 'dist', 'loader.mjs');
   if (!existsSync(node) || !existsSync(loaderPath) || (web && !existsSync(join(checkout, 'dist', 'web', 'index.html')))) {
     throw new Error('Run npm run covel:setup before starting Harbinger on Covel.');
@@ -22,7 +25,6 @@ export function launchCovel({ databasePath, provider, port = 0, web = false, rep
     HARBINGER_MODEL_NAME: provider.name,
     HARBINGER_MODEL_KEY: provider.key ?? '',
     HARBINGER_REASONING_EFFORT: provider.reasoningEffort ?? '',
-    HARBINGER_MODEL_SETTINGS_MODULE: new URL('./model-settings.mjs', import.meta.url).href,
     HARBINGER_RATED_STORY_MODULE: web ? new URL('./safety.mjs', import.meta.url).href : '',
     HARBINGER_STORY_MEMORY_MODULE: web ? new URL('./story-memory.mjs', import.meta.url).href : '',
     HARBINGER_PROVIDER_ROUTES_MODULE: new URL('./provider-routes.mjs', import.meta.url).href,
@@ -31,7 +33,7 @@ export function launchCovel({ databasePath, provider, port = 0, web = false, rep
     HARBINGER_BENCHMARK_STALLS: reportStalls ? '1' : '',
     HARBINGER_WAIT_FOR_PROVIDERS: waitForProviders ? '1' : '',
   };
-  return fork(join(checkout, 'apps', 'server', 'src', 'index.ts'), [], {
+  const child = fork(join(checkout, 'apps', 'server', 'src', 'index.ts'), [], {
     cwd: checkout,
     execPath: node,
     execArgv: ['--import', pathToFileURL(loaderPath).href],
@@ -52,4 +54,57 @@ export function launchCovel({ databasePath, provider, port = 0, web = false, rep
       COVEL_WORLDS_DIR: join(project, 'covel', 'worlds'),
     },
   });
+
+  const { promise: ready, resolve: markReady, reject: rejectReady } = Promise.withResolvers();
+  const { promise: closed, resolve: markClosed } = Promise.withResolvers();
+  let error;
+  let stopping = false;
+
+  function stop() {
+    if (!stopping && child.pid && child.exitCode === null && child.signalCode === null) {
+      stopping = true;
+      child.kill();
+    }
+    return closed;
+  }
+
+  function finishStartup() {
+    if (!deadline) return false;
+    clearTimeout(deadline);
+    deadline = undefined;
+    child.off('message', onMessage);
+    return true;
+  }
+
+  function onMessage(message) {
+    if (message?.type !== 'covel:ready' || !Number.isInteger(message.port)
+        || message.port < 1 || message.port > 65_535) return;
+    finishStartup();
+    markReady(`http://127.0.0.1:${message.port}`);
+  }
+
+  function onError(cause) {
+    error ??= cause;
+    if (finishStartup()) rejectReady(cause);
+  }
+
+  let deadline = setTimeout(() => {
+    finishStartup();
+    rejectReady(new Error('Covel did not become ready in time.'));
+    stop();
+  }, readyTimeoutMs);
+
+  child.on('message', onMessage);
+  child.on('error', onError);
+  child.once('close', (code, signal) => {
+    child.off('error', onError);
+    if (finishStartup()) {
+      rejectReady(new Error(`Covel stopped before becoming ready (${code ?? signal ?? 'unknown exit'}).`));
+    }
+    markClosed({ code, signal, error });
+  });
+  // The compatibility bridge may wait for its first HTTP request before observing readiness.
+  ready.catch(() => {});
+
+  return { ready, closed, stop };
 }

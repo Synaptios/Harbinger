@@ -14,7 +14,6 @@ async function withStudio(run, {
 } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'harbinger-studio-'));
   let child;
-  let closed;
   try {
     const priorConfig = process.env.COVEL_LLM_TOML;
     const priorKey = process.env.HARBINGER_OPENAI_API_KEY;
@@ -32,18 +31,10 @@ async function withStudio(run, {
       if (priorKey === undefined) delete process.env.HARBINGER_OPENAI_API_KEY;
       else process.env.HARBINGER_OPENAI_API_KEY = priorKey;
     }
-    closed = new Promise(resolve => child.once('exit', resolve));
-    const url = await new Promise((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', code => reject(new Error(`Covel exited before starting (${code}).`)));
-      child.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await child.ready;
     await run(url);
   } finally {
-    if (child && child.exitCode === null && child.signalCode === null) child.kill();
-    await closed;
+    await child?.stop();
     await rm(directory, { recursive: true, force: true });
   }
 }

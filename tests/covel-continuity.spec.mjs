@@ -71,7 +71,6 @@ test('native dialogue uses separate memory banks and scoped speaker prompts', as
   });
 
   let covel;
-  let stopped;
   try {
     fixture.listen(0, '127.0.0.1');
     await once(fixture, 'listening');
@@ -87,14 +86,7 @@ test('native dialogue uses separate memory banks and scoped speaker prompts', as
       if (oldUrl === undefined) delete process.env.HINDSIGHT_URL;
       else process.env.HINDSIGHT_URL = oldUrl;
     }
-    stopped = once(covel, 'exit');
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error('Covel exited (' + code + ')')));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve('http://127.0.0.1:' + message.port);
-      });
-    });
+    const url = await covel.ready;
     const catalog = await (await request.get(url + '/api/plugins')).json();
     const excludedPlugins = catalog.items.filter(plugin => plugin.id !== 'harbinger').map(plugin => plugin.id);
     async function turn(sessionId, text) {
@@ -178,8 +170,7 @@ test('native dialogue uses separate memory banks and scoped speaker prompts', as
     expect(state.benchmarkWaits.find(wait => wait.operation === 'harbinger_actor_reply').durationMs).toBeGreaterThanOrEqual(3_150);
     expect(storyPrompts).toEqual([]);
   } finally {
-    if (covel && covel.exitCode === null && covel.signalCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => { fixture.close(resolve); fixture.closeAllConnections(); });
     await rm(directory, { recursive: true, force: true });
   }

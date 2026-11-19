@@ -86,7 +86,6 @@ async function withRatedCovel(run, { memory = false, approvedNativeText, ratingD
   });
 
   let covel;
-  let stopped;
   try {
     provider.listen(0, '127.0.0.1');
     await once(provider, 'listening');
@@ -135,18 +134,10 @@ protocol = "openai-chat-v1"
         else process.env[key] = value;
       }
     }
-    stopped = new Promise(resolve => covel.once('exit', resolve));
-    const url = await new Promise((resolve, reject) => {
-      covel.once('error', reject);
-      covel.once('exit', code => reject(new Error(`Covel exited before starting (${code}).`)));
-      covel.on('message', message => {
-        if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-      });
-    });
+    const url = await covel.ready;
     await run(url, assessments, () => { nativeUnavailable = true; }, observed);
   } finally {
-    if (covel && covel.exitCode === null && covel.signalCode === null) covel.kill();
-    await stopped;
+    await covel?.stop();
     await new Promise(resolve => {
       provider.close(resolve);
       provider.closeAllConnections();

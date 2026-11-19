@@ -16,35 +16,24 @@ const route = [
 const requiredRoles = ['story', 'character', 'state'];
 const requireLength = process.argv.includes('--require-length');
 const diagnostics = ['gateway.calling', 'gateway.responded', 'gateway.failed', 'llm.calling', 'llm.responded'];
-const children = [];
+const runtimes = [];
 
 function launch(directory, label, provider, toml) {
   const savedToml = process.env.COVEL_LLM_TOML;
-  let child;
+  let runtime;
   try {
     if (toml) process.env.COVEL_LLM_TOML = resolve(toml);
     else delete process.env.COVEL_LLM_TOML;
-    child = launchCovel({ databasePath: join(directory, label, 'story.sqlite'), provider, web: true });
+    runtime = launchCovel({
+      databasePath: join(directory, label, 'story.sqlite'), provider, web: true, readyTimeoutMs: 20_000,
+    });
   } finally {
     if (savedToml === undefined) delete process.env.COVEL_LLM_TOML;
     else process.env.COVEL_LLM_TOML = savedToml;
   }
-  children.push({ child, stopped: new Promise(resolveExit => child.once('close', resolveExit)) });
-  return new Promise((resolveReady, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} server did not become ready.`)), 20_000);
-    child.once('error', () => {
-      clearTimeout(timer);
-      reject(new Error(`${label} server could not start.`));
-    });
-    child.once('close', code => {
-      clearTimeout(timer);
-      reject(new Error(`${label} server exited (${code ?? 'signal'}).`));
-    });
-    child.on('message', message => {
-      if (message?.type !== 'covel:ready') return;
-      clearTimeout(timer);
-      resolveReady(`http://127.0.0.1:${message.port}`);
-    });
+  runtimes.push(runtime);
+  return runtime.ready.catch(error => {
+    throw new Error(`${label} server could not start. ${error.message}`, { cause: error });
   });
 }
 
@@ -277,10 +266,7 @@ async function main() {
     console.log(JSON.stringify({ metrics, prose, gatePassed }));
     if (!gatePassed) process.exitCode = 1;
   } finally {
-    await Promise.all(children.map(async ({ child, stopped }) => {
-      if (child.exitCode === null && child.signalCode === null) child.kill();
-      await stopped;
-    }));
+    await Promise.all(runtimes.map(runtime => runtime.stop()));
     await rm(temporary, { recursive: true, force: true });
   }
 }

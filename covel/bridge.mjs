@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { nextCopyName } from '../app/saves.mjs';
-import { clarificationPrefix } from '../app/turns.mjs';
-import { validCovelSave } from './saves.mjs';
+import { publishedStoryView, validCovelSave } from './saves.mjs';
 import { launchCovel } from './runtime.mjs';
 
 function failure(message, status) {
@@ -13,16 +12,10 @@ function inputId(sessionId, requestId) {
 }
 
 export function createCovelBridge({ databasePath, provider }) {
-  const child = launchCovel({ databasePath, provider });
-  const closed = new Promise(resolve => child.once('exit', resolve));
-  const ready = new Promise((resolve, reject) => {
-    child.once('error', reject);
-    child.once('exit', () => reject(failure('The Covel runtime stopped.', 503)));
-    child.on('message', message => {
-      if (message?.type === 'covel:ready') resolve(`http://127.0.0.1:${message.port}`);
-    });
+  const runtime = launchCovel({ databasePath, provider });
+  const ready = runtime.ready.catch(() => {
+    throw failure('The Covel runtime stopped.', 503);
   });
-  // Preserve the startup failure for the first request even if it arrives later.
   ready.catch(() => {});
 
   async function call(path, data) {
@@ -39,11 +32,6 @@ export function createCovelBridge({ databasePath, provider }) {
     const events = (await response.text()).split(/\r?\n/u).filter(line => line.startsWith('data: '))
       .map(line => JSON.parse(line.slice(6)));
     if (!events.findLast(event => event.type === 'execution.completed')?.payload?.committed) {
-      const storyFailure = events.findLast(event => event.type === 'runtime.failed' && event.payload?.runtimeId === 'harbinger/story');
-      const message = storyFailure?.payload.error;
-      if (typeof message === 'string' && message.startsWith(clarificationPrefix)) {
-        return message.slice(clarificationPrefix.length);
-      }
       throw failure('The story could not finish this passage. Try again.', 502);
     }
   }
@@ -54,12 +42,9 @@ export function createCovelBridge({ databasePath, provider }) {
   }
 
   async function read(id) {
-    const items = await pluginItems(id);
-    const view = items.find(item => item.namespace === 'story' && item.key === 'view')?.value;
+    const view = publishedStoryView(await pluginItems(id));
     if (!view) throw failure('Save not found.', 404);
-    const passages = items.filter(item => item.namespace === 'passages')
-      .map(item => item.value).sort((a, b) => a.sequence - b.sequence);
-    return { ...view, passages };
+    return view;
   }
 
   async function readCommittedInput(id, messageId) {
@@ -160,19 +145,15 @@ export function createCovelBridge({ databasePath, provider }) {
         throw failure('That request ID belongs to a different turn.', 409);
       }
       try {
-        const clarification = await runAction(id, 'submit_actions', randomUUID(), {
+        await runAction(id, 'submit_actions', randomUUID(), {
           ...(recovering ? retry.payload : { actions: [{ kind: 'say', text: actionText }], inputMessageId: messageId }),
           ...(recovering && { recoverFromTurnId: status.turnId }),
         });
-        if (clarification) return { clarification };
       } catch (error) {
         if (!await readCommittedInput(id, messageId).catch(() => false)) throw error;
       }
       return read(id);
     },
-    async close() {
-      if (child.exitCode === null) child.kill();
-      await closed;
-    },
+    close: runtime.stop,
   };
 }

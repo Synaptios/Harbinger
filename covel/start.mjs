@@ -14,7 +14,7 @@ if (!process.env.HINDSIGHT_URL) {
   }
 }
 
-const child = launchCovel({
+const runtime = launchCovel({
   databasePath: process.env.HARBINGER_COVEL_DATABASE_PATH ?? '.harbinger/covel-story.sqlite',
   provider: providerFromEnvironment(),
   port: Number(process.env.HARBINGER_PORT ?? 4174),
@@ -22,16 +22,22 @@ const child = launchCovel({
   waitForProviders: true,
 });
 
+let stopping = false;
 function stop() {
-  if (child.exitCode === null && !child.killed) child.kill();
+  stopping = true;
+  runtime.stop();
 }
 
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
-child.on('error', error => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
-child.on('exit', code => {
-  process.exitCode = code ?? (child.killed ? 0 : 1);
-});
+let startupError;
+try {
+  await runtime.ready;
+} catch (error) {
+  if (!stopping) startupError = error;
+}
+const { code, error } = await runtime.closed;
+const failure = startupError ?? error;
+if (failure) console.error(failure.message);
+if (error || (failure && !code)) process.exitCode = 1;
+else process.exitCode = code ?? (stopping ? 0 : 1);

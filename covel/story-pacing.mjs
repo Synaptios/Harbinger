@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { actorName, sceneActorIds } from '../app/thoughts.mjs';
-import { campaignScene } from '../app/campaign.mjs';
+import { campaignLocation } from '../app/campaign.mjs';
 import { campaignFollowups, getCampaignFollowup } from '../app/campaign-followups.mjs';
 import { storyAvenues } from './worlds/bread-ledger/story-avenues.mjs';
 
@@ -14,7 +14,7 @@ const campaignVenues = {
 };
 
 function pacingVenue(state) {
-  return campaignVenues[campaignScene(state)?.location] ?? state.scene;
+  return campaignVenues[campaignLocation(state)] ?? state.scene;
 }
 
 function getAvenue(state, id) {

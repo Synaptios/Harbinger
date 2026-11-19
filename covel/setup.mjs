@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,11 +25,37 @@ if (!existsSync(checkout)) {
 const installedCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout, encoding: 'utf8' }).trim();
 if (installedCommit !== covelCommit) throw new Error(`Covel must be checked out at ${covelCommit}.`);
 
+// The earlier server patch also installed a legacy Settings API. Update only
+// its exact generated files so setup can upgrade an existing Covel checkout.
+function retireLegacySettingsRoute(patch, isApplied) {
+  const route = 'apps/server/src/routes/harbinger-config.ts';
+  const access = 'apps/server/tests/bootstrap/route-access.test.ts';
+  const test = 'apps/server/tests/harbinger-config.test.ts';
+  const replacedFiles = [
+    [route, 'd1bbc147b65dbab981c5892f2ee2551ac0d99316'],
+    [access, '72aaa6999e1ed43cb86b644a2e59df609065e2e0'],
+    [test, 'f758da6ab1badf051dab420184c354053ebf4ab5'],
+  ];
+  if (!isApplied(replacedFiles.map(([path]) => '--exclude=' + path))) return;
+  const git = args => execFileSync('git', args, { cwd: checkout, encoding: 'utf8' }).trim();
+  if (!replacedFiles.every(([path, hash]) => existsSync(join(checkout, path))
+      && git(['hash-object', '--path=' + path, path]) === hash)) return;
+
+  run('git', ['restore', '--source=HEAD', '--worktree', '--', access], checkout);
+  unlinkSync(join(checkout, route));
+  unlinkSync(join(checkout, test));
+  run('git', ['apply', '--include=' + route, '--include=' + access, patch], checkout);
+}
+
 const patchesPath = fileURLToPath(new URL('./patches/', import.meta.url));
 for (const name of readdirSync(patchesPath).filter(name => name.endsWith('.patch')).sort()) {
   const patch = fileURLToPath(new URL(`./patches/${name}`, import.meta.url));
-  const applied = spawnSync('git', ['apply', '--reverse', '--check', patch], { cwd: checkout, stdio: 'ignore' });
-  if (applied.status !== 0) run('git', ['apply', patch], checkout);
+  const isApplied = (filters = []) => spawnSync('git', ['apply', '--reverse', '--check', ...filters, patch], {
+    cwd: checkout, stdio: 'ignore',
+  }).status === 0;
+  if (isApplied()) continue;
+  if (name === 'harbinger-server.patch') retireLegacySettingsRoute(patch, isApplied);
+  if (!isApplied()) run('git', ['apply', patch], checkout);
 }
 
 const npm = process.env.npm_execpath;

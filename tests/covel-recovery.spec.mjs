@@ -5,29 +5,16 @@ import { startApp } from './app-fixture.mjs';
 
 test.skip(!process.env.HARBINGER_TEST_COVEL, 'Run the Covel browser suite with HARBINGER_TEST_COVEL=1.');
 
-const fixture = [
-  'Light falls over the boards at a slant, showing the scratches left by a rough edge of the baker’s peel. Alice wipes the flour from the place where the ledger lies. She sets a small brass weight against the cover and moves the scales to make room for it.',
-  'Martin keeps one hand on the ledger as he speaks. When he says dusk, a cart wheel sounds from the lane and he waits for it to pass. His own copy of the guild’s tally lies folded near the edge of the table, beside a bowl left to catch the wax.',
-  'The lane beyond the window smells of smoke. A pair of hands has mended the shutter with wood that does not match. Through a gap in the new board a line of light cuts straight across the table. For a moment the mark on the ledger looks brighter than its paper.',
-].join('\n\n');
-const passageText = `${fixture}\n\n${fixture}\n\n${fixture}`;
-
-async function withRecoveryApp(run, { rejectFirstPlayerTurn = false, interpret } = {}) {
-  let failPlayerTurn = rejectFirstPlayerTurn;
+async function withRecoveryApp(run, { interpret } = {}) {
   const provider = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const payload = JSON.parse(Buffer.concat(chunks).toString());
     const responses = typeof payload.input === 'string';
     const context = JSON.parse(responses ? payload.input : payload.messages[1].content);
-    if (context.currentScene && !context.candidate && !context.opening && failPlayerTurn) {
-      failPlayerTurn = false;
-      response.writeHead(503);
-      return response.end();
-    }
-    let output = { prose: passageText };
-    if (context.candidate) output = { hardFailures: [], editorial: null };
-    if (context.actor) output = { thought: 'I have to weigh this flour first.' };
+    let output = {};
+    if (context.actor && context.words) output = { reply: 'I have to weigh this flour first.', meetingId: null };
+    if (context.actor && context.options) output = { index: 0 };
     if (context.audience) {
       output = { intents: interpret?.(context) ?? [{ type: 'speak', words: 'Are you coming with me?', actorId: null }] };
     }
@@ -55,7 +42,7 @@ async function withRecoveryApp(run, { rejectFirstPlayerTurn = false, interpret }
   }
 }
 
-test('a provider outage still commits the turn and a lost acknowledgement recovers on reload', async ({ page }) => {
+test('a committed turn with a lost acknowledgement recovers on reload', async ({ page }) => {
   test.slow();
   await withRecoveryApp(async app => {
     await page.goto(app.url);
@@ -78,10 +65,10 @@ test('a provider outage still commits the turn and a lost acknowledgement recove
     await expect(story.getByRole('article').last()).toContainText('Martin sets a finger beside the delivery column.');
     await expect(input).toHaveValue('');
     await expect(retry).toBeHidden();
-  }, { rejectFirstPlayerTurn: true });
+  });
 });
 
-test('ambiguous speech commits a clarification without guessing who the player addressed', async ({ page }) => {
+test('ambiguous speech commits one clarification with a replayable receipt', async ({ page }) => {
   test.slow();
   await withRecoveryApp(async app => {
     await page.goto(app.url);
@@ -90,13 +77,29 @@ test('ambiguous speech commits a clarification without guessing who the player a
     await expect(story).toBeVisible({ timeout: 30_000 });
     const input = page.getByRole('textbox', { name: 'What do you do?' });
     const draft = 'I ask, “Are you coming with me?”';
+    const clarification = 'Who would you like to address, and what would you like to say aloud?';
     await input.fill(draft);
+    const submitted = page.waitForRequest(request => request.method() === 'POST' && request.url().endsWith('/turns'));
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(story.getByRole('article').last()).toContainText('Who would you like to address, and what would you like to say aloud?');
+    await expect(story.getByRole('article').last()).toContainText(clarification);
     await expect(page.getByRole('button', { name: 'Retry turn' })).toBeHidden();
     await expect(input).toHaveValue('');
     await expect(story.getByRole('article')).toHaveCount(2);
     await expect(page.locator('#scene-location')).toContainText('Bakehouse lane');
+
+    const turn = await submitted;
+    const payload = turn.postDataJSON();
+    const receiptUrl = new URL('./receipt', turn.url());
+    receiptUrl.searchParams.set('requestId', payload.requestId);
+    const receipt = await page.request.get(receiptUrl.href);
+    expect(await receipt.json()).toEqual({ committed: true });
+    const replay = await page.request.post(turn.url(), { data: payload });
+    expect(replay.ok()).toBe(true);
+    const save = await replay.json();
+    expect(save.revision).toBe(payload.revision + 1);
+    expect(save.passages).toHaveLength(2);
+    expect(save.passages.at(-1).paragraphs.join(' ')).toContain(clarification);
+
     await input.fill('Go with Alice to the river');
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(story.getByRole('heading', { name: 'Thames landing' })).toBeVisible();

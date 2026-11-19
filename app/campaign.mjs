@@ -169,28 +169,36 @@ function stageOptions(state, entry) {
   })) ?? [];
 }
 
-export function campaignScene(state) {
-  const entry = currentCase(state);
-  if (entry) return {
-    heading: state.campaign.dramatica && state.campaign.step === 1 ? entry.title : chapterHeading(entry, state.campaign.step), location: entry.location,
-    choices: stageOptions(state, entry).map(({ label }) => label),
-  };
+export function campaignLocation(state) {
+  return currentCase(state)?.location;
 }
 
-export function campaignPublic(state) {
+function campaignQuestion(state, entry) {
+  const { step } = state.campaign;
+  return [
+    'What do you need me to understand about ' + entry.object + '?', entry.question,
+    'Who will feel the cost if the account is left as it stands?',
+    'What would you be willing to have entered under your own name?',
+    step === 4 ? followThrough[recordedDisposition(state, entry)]?.question ?? 'What is still open here?' : null,
+    'Is there anything from this matter someone may need to come back for?',
+  ][step];
+}
+
+export function campaignView(state) {
   const entry = currentCase(state);
-  if (entry) {
-    const { chapter, step } = state.campaign;
-    const actorId = actorFor(state, entry);
-    const question = [
-      'What do you need me to understand about ' + entry.object + '?', entry.question,
-      'Who will feel the cost if the account is left as it stands?',
-      'What would you be willing to have entered under your own name?',
-      step === 4 ? followThrough[recordedDisposition(state, entry)]?.question ?? 'What is still open here?' : null,
-      'Is there anything from this matter someone may need to come back for?',
-    ][step];
-    return { chapter, step, actorName: roles[actorId].name, question, options: stageOptions(state, entry) };
-  }
+  if (!entry) return;
+  const { chapter, step, dramatica } = state.campaign;
+  const actorName = roles[actorFor(state, entry)].name;
+  const question = campaignQuestion(state, entry);
+  const options = stageOptions(state, entry);
+  return {
+    scene: {
+      heading: dramatica && step === 1 ? entry.title : chapterHeading(entry, step),
+      location: entry.location,
+      choices: options.map(({ label }) => label),
+    },
+    campaign: { chapter, step, actorName, question, options },
+  };
 }
 
 export function campaignSpeechScope(state, actorId, words) {
@@ -217,7 +225,7 @@ export function campaignSpeechScope(state, actorId, words) {
   const exchangePassages = new Set(state.records.filter(item => item.type === 'actor-exchange'
     && item.actorId === actorId && (Math.floor(item.minute / 1440) === day || knownDays.has(Math.floor(item.minute / 1440))))
     .map(item => item.passageId));
-  const directQuestion = words.trim().toLowerCase().endsWith(campaignPublic(state).question.toLowerCase());
+  const directQuestion = words.trim().toLowerCase().endsWith(campaignQuestion(state, entry).toLowerCase());
   return {
     caseEvidence: new Set([...current, ...recalled].map(item => 'observation:' + item.id)),
     shareable: new Set(directQuestion ? current.map(item => 'observation:' + item.id) : []),
@@ -231,7 +239,7 @@ function advanceToMorning(state) {
 
 function passage(state, heading, text, paragraphs, actorIds) {
   const id = 'passage-' + state.passages.length;
-  const { location } = campaignScene(state);
+  const { location } = currentCase(state);
   state.passages.push({
     id, heading, location, time: campaignTime(state.minute), playerText: text,
     paragraphs, sceneId: campaignSceneId, minute: state.minute, actorIds,

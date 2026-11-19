@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { playerView, startEpisode } from '../app/episode.mjs';
+import { playerView, playFixedTurn, startEpisode } from '../app/episode.mjs';
 import { hydrateStoredStory, readStoredStory, storyChunkNamespace, storyNamespace, writeStoredStory } from '../covel/save-storage.mjs';
-import { captureSave, packSave } from '../covel/saves.mjs';
+import { composeResolvedPassage } from '../covel/resolved-passage.mjs';
+import { captureSave, packSave, publishStoryTurn, readPublishedPassages } from '../covel/saves.mjs';
 import restore from '../covel/plugins/harbinger/runtimes/restore/handler.js';
 import register from '../covel/plugins/harbinger/server/index.js';
 import { startApp } from './app-fixture.mjs';
@@ -83,6 +84,41 @@ test('a portable save larger than one native row restores, exports and opens its
   expect(await actions.get('testing-view')({}, { store })).toMatchObject({
     ok: true, data: { revision: 0, thoughts: save.state.thoughts },
   });
+});
+
+test('a compound turn keeps its published Journal sources through capture and restore', async () => {
+  const { pluginData, store } = storageFixture();
+  const opening = { id: 'compound', name: 'A compound turn', revision: 0, state: startEpisode() };
+  const composition = {
+    publishedPassages: () => readPublishedPassages(pluginData),
+    recordThoughts: () => {},
+  };
+  const composedOpening = await composeResolvedPassage({ save: opening }, composition);
+  await publishStoryTurn(pluginData, { save: opening, composed: composedOpening, playerText: null });
+
+  const previous = await readStoredStory(pluginData);
+  const landing = (await playFixedTurn(previous.save.state, 'Go with Alice to the river')).state;
+  const state = (await playFixedTurn(landing, 'Help Alice load the flour')).state;
+  const save = { ...opening, revision: 1, state };
+  const playerText = 'Go with Alice to the river, then help load the flour.';
+  const composed = await composeResolvedPassage({ save, previous: previous.save, playerText }, composition);
+  await publishStoryTurn(pluginData, { save, previous, composed, playerText });
+  const renderedId = composed.finalPassage.id;
+
+  const journal = pluginData.get('story', 'view').observations;
+  const newObservations = journal.slice(opening.state.observations.length);
+  expect(newObservations.length).toBeGreaterThan(1);
+  expect(new Set(newObservations.map(observation => observation.passageId))).toEqual(new Set([renderedId]));
+  expect(journal[0].passageId).toBe(opening.state.passages[0].id);
+
+  const { data: bundle } = await captureSave({ store });
+  expect(bundle.passages.map(passage => passage.id)).toEqual([opening.state.passages[0].id, renderedId]);
+  expect(bundle.passages[1]).not.toHaveProperty('observation');
+  const destination = storageFixture();
+  expect((await restore({ manualPayload: bundle, pluginData: destination.pluginData, sessionId: 'restored' })).outcome)
+    .toBe('success');
+  expect(destination.pluginData.get('story', 'view').observations).toEqual(journal);
+  expect((await captureSave(destination)).data).toEqual(bundle);
 });
 
 test('a native oversized save survives restart and the next action commits exactly once', async ({ request }) => {
