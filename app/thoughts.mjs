@@ -2,6 +2,8 @@ import { actorContext } from './knowledge.mjs';
 
 const sceneActors = {
   bakehouse: ['alice', 'martin'],
+  guildInspection: ['alice', 'martin'],
+  licensedOven: ['alice'],
   landing: ['alice', 'river-carter'],
   shutter: ['alice', 'errand-boy'],
   notice: ['alice'],
@@ -38,6 +40,8 @@ function participants(before, state) {
       mark(event.actorId, 'onstage', event.minute, source, event.topic);
     } else if (event.type === 'ledger-interruption') {
       mark('alice', 'onstage', event.minute, 'Alice stops the clerk at the ledger', 'ledger');
+    } else if (event.type === 'ledger-presented') {
+      for (const actorId of event.witnesses) mark(actorId, 'onstage', event.minute, 'The clerk gives Martin the ledger names', 'ledger-presented');
     } else if (event.type === 'inspection' && event.outcome === 'oven-sealed') {
       mark('martin', 'offstage', event.minute, 'Guild inspection at dusk', 'inspection');
       for (const affected of event.sources ?? []) {
@@ -72,6 +76,12 @@ function optionsFor(role, view) {
     'guild-porter': ['I have to keep track of what crosses this threshold. I’ll ask what the clerk needs.'],
   };
   const sources = [role.source];
+  if (role.topic === 'ledger-presented' || role.topic === 'licensedOven') {
+    const line = role.actorId === 'alice'
+      ? 'I can keep my oven hot. I’m taking the spare key down before I feed the next child.'
+      : 'I can answer for the inspection now. I have to answer for what comes of those names, too.';
+    return { lines: [line], sources };
+  }
   if (role.topic === 'arthur-death') {
     const account = view.beliefs.find(belief => belief.topic === role.topic);
     if (account) {

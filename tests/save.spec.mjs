@@ -150,3 +150,43 @@ test('portable saves preserve private notes and reject malformed imports without
     await app.close();
   }
 });
+
+test('restores inspector metadata only when its optional fields have a usable shape', async ({ request }) => {
+  const app = await startApp();
+  try {
+    const endpoint = app.url + '/api/saves';
+    let original = await (await request.post(endpoint, { data: {} })).json();
+    const originalUrl = endpoint + '/' + original.id;
+    for (const text of ['Go with Alice to the river', 'Help Alice load the flour']) {
+      const turn = await request.post(originalUrl + '/turns', {
+        data: { text, revision: original.revision, requestId: randomUUID() },
+      });
+      await expect(turn).toBeOK();
+      original = await turn.json();
+    }
+    const bundle = await (await request.get(originalUrl + '/export')).json();
+    const { thoughts, directorTrace, ...legacyState } = bundle.state;
+    expect(thoughts.length).toBeGreaterThan(0);
+    expect(directorTrace.length).toBeGreaterThan(0);
+
+    for (const patch of [
+      { thoughts: 'not an array' },
+      { thoughts: [{ ...thoughts[0], sources: null }] },
+      { directorTrace: {} },
+      { directorTrace: [{ ...directorTrace[0], reason: 42 }] },
+    ]) {
+      const response = await request.post(endpoint + '/import', { data: { ...bundle, state: { ...bundle.state, ...patch } } });
+      expect(response.status()).toBe(400);
+    }
+    expect(await (await request.get(endpoint)).json()).toMatchObject([{ id: original.id }]);
+
+    const current = await request.post(endpoint + '/import', { data: bundle });
+    await expect(current).toBeOK();
+    const restored = await current.json();
+    expect(await (await request.get(endpoint + '/' + restored.id + '/testing')).json())
+      .toEqual(await (await request.get(originalUrl + '/testing')).json());
+    await expect(await request.post(endpoint + '/import', { data: { ...bundle, state: legacyState } })).toBeOK();
+  } finally {
+    await app.close();
+  }
+});

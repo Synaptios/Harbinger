@@ -13,11 +13,32 @@ const scenes = {
       'Martin, the guild officer, rests the delivery book beside the scales. “At dusk. This book, a pair of honest totals, and I can keep the ovens open.”',
       'When the door shuts, Alice wipes her hands on her apron. “I stood surety for you once. I won’t ask you to owe me. Come to the river and look at what’s waiting there.”',
     ],
-    choices: ['Go with Alice to the river', 'Ask the carters in the market'],
+    choices: ['Go with Alice to the river', 'Ask the carters in the market', 'Take the ledger to Martin'],
     observation: { kind: 'claim', title: 'The proclamation', text: 'The crier says Arthur died fighting Launcelot overseas.', source: 'London crier', status: 'reported' },
     additionalObservations: [
       { kind: 'person', title: 'Alice', text: 'Alice is the baker who once stood surety for the clerk.', source: 'Conversation at the bakehouse', status: 'firsthand' },
       { kind: 'person', title: 'Martin', text: 'Martin is the guild officer who asked the clerk to bring the ledger to the inspection at dusk.', source: 'Conversation at the bakehouse', status: 'firsthand' },
+    ],
+  },
+  guildInspection: {
+    heading: 'The last entry', location: 'London · Guild room', time: 'Late afternoon',
+    paragraphs: [
+      'Alice lets you carry the book on condition she comes with you. Martin sets a finger beside the delivery column. The guild’s seal is on the table between you.',
+      '“I can keep the oven open if I have names to put against the flour.” Alice looks down. “There’s a person after every number,” she says. “Read them slowly.”',
+    ],
+    choices: ['Give Martin the names', 'Return to the bakehouse with the ledger'],
+    observation: { kind: 'place', title: 'The guild room', text: 'Martin receives the day’s accounts in the guild room.', source: 'Seen at the guild room', status: 'firsthand' },
+  },
+  licensedOven: {
+    heading: 'The key comes off the nail', location: 'London · Alice’s bakehouse', time: 'After dusk',
+    paragraphs: [
+      'Martin copies the names into the guild book. At dusk a license goes up where the closure order would have gone. Beside it, you see an order summoning the carter to answer for the missing flour at first light.',
+      'Alice cuts the last loaf between two children. Then she takes the spare key off its nail and slips it into her apron. “Leave the wood by the door tomorrow,” she says. She turns back to the people waiting.',
+    ],
+    choices: [],
+    observation: { kind: 'clue', title: 'Guild license on the shutter', text: 'The guild kept Alice’s oven open after receiving the ledger names.', source: 'License on the bakehouse', status: 'firsthand' },
+    additionalObservations: [
+      { kind: 'clue', title: 'Summons for the carter', text: 'The carter must answer for the flour before the guild at first light.', source: 'Order on the bakehouse', status: 'firsthand' },
     ],
   },
   landing: {
@@ -113,6 +134,12 @@ const scenes = {
 };
 
 const route = {
+  'Take the ledger to Martin': { next: 'guildInspection', minute: 1055 },
+  'Give Martin the names': { next: 'licensedOven', minute: 1100 },
+  'Return to the bakehouse with the ledger': {
+    next: 'shutter', minute: 1080, locationId: 'bakehouse-lane',
+    arrival: 'You and Alice walk back together as the dusk bell sounds. The ledger is still under your arm.',
+  },
   'Go with Alice to the river': { next: 'landing', minute: 1020 },
   'Help Alice load the flour': { next: 'shutter', minute: 1080, locationId: 'bakehouse-lane' },
   'Read the guild notice': { next: 'notice', minute: 1080 },
@@ -125,11 +152,12 @@ const route = {
   'Help Alice find another oven': { next: 'marketOven', minute: 1105 },
 };
 
-function visit(state, scene, playerText) {
+function visit(state, scene, playerText, arrival) {
   const view = scenes[scene];
+  const paragraphs = arrival ? [arrival, ...view.paragraphs.slice(1)] : view.paragraphs;
   const passageId = 'passage-' + state.passages.length;
   state.scene = scene;
-  state.passages.push({ id: passageId, ...view, playerText, sceneId: scene, minute: state.minute });
+  state.passages.push({ id: passageId, ...view, paragraphs, playerText, sceneId: scene, minute: state.minute });
   for (const { confirms, ...observation } of [view.observation, ...(view.additionalObservations ?? [])]) {
     const prior = confirms && state.observations.findLast(item => item.topic === confirms && item.status === 'reported');
     state.observations.push({
@@ -175,17 +203,39 @@ export function playFixedTurn(state, text) {
   }
   const result = structuredClone(state);
   const move = route[choice];
+  if (choice === 'Give Martin the names') {
+    if (!result.pending.some(event => event.type === 'inspection')) {
+      return { clarification: 'The dusk inspection has already ended.' };
+    }
+    result.records.push({
+      type: 'ledger-presented', actorId: 'martin', recipient: 'martin',
+      witnesses: ['alice', 'martin'], minute: result.minute,
+      passageId: result.passages.at(-1).id,
+    });
+    const trust = result.relationships?.find(relationship => relationship.from === 'alice' && relationship.to === 'player');
+    if (trust) trust.trust = Math.min(-1, trust.trust);
+  }
   advanceAgenda(result, move.minute);
   result.records.push({ type: 'player-action', text, minute: result.minute });
+  if (choice === 'Help Alice load the flour') {
+    result.records.push({ type: 'flour-dispatched', from: 'thames-landing', toward: 'tower', minute: result.minute });
+  }
   const consequence = move.locationId && selectInspectionConsequence(result, move.locationId);
-  visit(result, consequence ?? move.next, text);
+  let arrival = move.arrival;
+  if (move.next === 'firstLight' && !result.records.some(event =>
+    event.type === 'flour-dispatched' ||
+    (event.type === 'player-action' && event.text.trim().toLowerCase() === 'help alice load the flour'))) {
+    arrival = 'The sacks still wait at the landing. The names are still in the book. Behind the shutter, the oven is going cold.';
+  }
+  visit(result, consequence ?? move.next, text, arrival);
   return { state: result };
 }
 
 export function playerView(save) {
   const { state } = save;
   const { heading, location, time, choices } = scenes[state.scene] ?? generatedScene(state);
-  const offeredChoices = [...choices, ...conversationChoices(state), ...generatedChoices(state)];
+  const authoredChoices = choices.filter(choice => choice !== 'Give Martin the names' || state.pending.some(event => event.type === 'inspection'));
+  const offeredChoices = [...authoredChoices, ...conversationChoices(state), ...generatedChoices(state)];
   return {
     id: save.id, name: save.name, revision: save.revision,
     title, worldVersion: state.worldVersion,

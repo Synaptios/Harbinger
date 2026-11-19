@@ -19,6 +19,7 @@ export const workspace = {
   get save() { return currentSave; },
   get pending() { return pending; },
   openSave,
+  startStory,
   request,
 };
 
@@ -50,7 +51,10 @@ function show(save, { follow = false } = {}) {
   composer.hidden = save.ended;
   document.querySelector('#save-name').textContent = save.name;
   document.querySelector('#scene-location').textContent = save.scene.location + ' / ' + save.scene.time;
-  if (!sameSave) passages.replaceChildren();
+  if (!sameSave) {
+    passages.replaceChildren();
+    jump.hidden = true;
+  }
   for (const passage of save.passages.slice(passages.children.length)) {
     const article = make('article', null, 'passage');
     article.id = passage.id;
@@ -80,9 +84,17 @@ function show(save, { follow = false } = {}) {
 }
 
 async function openSave(id) {
-  const save = await request('/api/saves/' + id);
-  if (currentSave?.id !== id) {
-    action.value = localStorage.getItem('harbinger.draft.' + id) ?? '';
+  await selectSave(await request('/api/saves/' + id));
+}
+
+async function startStory() {
+  await selectSave(await request('/api/saves', 'POST', {}));
+}
+
+async function selectSave(save) {
+  if (currentSave?.id !== save.id) {
+    action.value = localStorage.getItem('harbinger.draft.' + save.id) ?? '';
+    status.textContent = '';
     await restoreTurn(save);
   }
   show(save, { follow: true });
@@ -185,7 +197,7 @@ composer.addEventListener('submit', event => {
 begin.addEventListener('click', async () => {
   begin.disabled = true;
   try {
-    show(await request('/api/saves', 'POST', {}), { follow: true });
+    await startStory();
   } catch (error) {
     status.textContent = error.message;
   } finally {

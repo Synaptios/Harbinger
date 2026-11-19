@@ -17,6 +17,7 @@ library.innerHTML = `
   </div>
   <ul class="save-list" aria-label="Local saves"></ul>
   <div class="save-library-controls">
+    <button type="button" data-new-story hidden>New story</button>
     <button type="button" data-duplicate>Duplicate current save</button>
   </div>
   <div class="save-library-transfer">
@@ -30,16 +31,20 @@ library.innerHTML = `
 document.body.append(library);
 
 const list = library.querySelector('.save-list');
+const newStory = library.querySelector('[data-new-story]');
 const duplicate = library.querySelector('[data-duplicate]');
 const completeExport = library.querySelector('[data-export]');
 const storyExport = library.querySelector('[data-story]');
 const importInput = library.querySelector('#save-import');
 const saveStatus = library.querySelector('.save-library-status');
+const saveTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
 let saveList = [];
 let working = false;
 
 function syncControls() {
   const waitForTurn = workspace.pending;
+  newStory.hidden = !workspace.save;
+  newStory.disabled = waitForTurn || working;
   duplicate.disabled = !workspace.save || waitForTurn || working;
   importInput.disabled = waitForTurn || working;
   for (const [link, file] of [[completeExport, 'export'], [storyExport, 'story']]) {
@@ -61,6 +66,10 @@ function renderList() {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = save.name;
+    if (saveList.some(other => other.id !== save.id && other.name === save.name)) {
+      const progress = save.revision ? 'Turn ' + save.revision : 'Opening';
+      button.textContent += ' · ' + progress + ' · ' + saveTime.format(new Date(save.updated_at));
+    }
     if (save.id === workspace.save?.id) button.setAttribute('aria-current', 'true');
     button.addEventListener('click', () => void run(async () => {
       await workspace.openSave(save.id);
@@ -98,6 +107,12 @@ libraryButton.addEventListener('click', () => {
 });
 
 library.querySelector('[data-close]').addEventListener('click', () => library.close());
+newStory.addEventListener('click', () => void run(async () => {
+  if (workspace.pending) return;
+  await workspace.startStory();
+  library.close();
+  document.querySelector('#reading').focus();
+}));
 duplicate.addEventListener('click', () => void run(async () => {
   const save = await workspace.request('/api/saves/' + workspace.save.id + '/duplicate', 'POST', {});
   await refresh();

@@ -20,11 +20,12 @@ export function advanceAgenda(state, minute) {
       state.records.push(event);
       continue;
     }
+    const submitted = state.records.findLast(record => record.type === 'ledger-presented' && record.minute <= event.minute);
     state.records.push({
       ...event,
       id: `inspection-${event.minute}`,
-      outcome: 'oven-sealed',
-      sources: [
+      outcome: submitted ? 'oven-licensed' : 'oven-sealed',
+      sources: submitted ? [{ actorId: 'martin', detail: 'Received the ledger names before the inspection.' }] : [
         { actorId: 'errand-boy', detail: 'Saw the written order on the bakehouse shutter.' },
         { actorId: 'guild-runner', detail: 'Received a copy of the order from Martin.' },
       ],

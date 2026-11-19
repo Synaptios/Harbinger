@@ -27,6 +27,21 @@ function strings(list) {
   return rows(list, item => typeof item === 'string');
 }
 
+function nonnegativeInteger(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
+function validInspectorMetadata(state) {
+  return (state.thoughts === undefined || rows(state.thoughts, thought =>
+    stringFields(thought, ['actorId', 'name', 'presence', 'text']) &&
+    ['onstage', 'offstage'].includes(thought.presence) &&
+    nonnegativeInteger(thought.turn) && nonnegativeInteger(thought.minute) && strings(thought.sources))) &&
+    (state.directorTrace === undefined || rows(state.directorTrace, direction =>
+      stringFields(direction, ['id', 'situationId', 'situation', 'eventId', 'actorId', 'locationId', 'reason']) &&
+      nonnegativeInteger(direction.minute) &&
+      (direction.turn === undefined || nonnegativeInteger(direction.turn))));
+}
+
 function safeKeys(value, depth = 0) {
   if (depth > 32) return false;
   if (value === null || typeof value !== 'object') return true;
@@ -44,7 +59,8 @@ function validState(state, revision) {
         strings(record.recipients)) ||
       !rows(state.facts, record => stringFields(record, ['id', 'text', 'source']) && strings(record.recipients)) ||
       !rows(state.pending, record => stringFields(record, ['type']) && Number.isSafeInteger(record.minute)) ||
-      !rows(state.records, record => stringFields(record, ['type']))) return false;
+      !rows(state.records, record => stringFields(record, ['type'])) ||
+      !validInspectorMetadata(state)) return false;
 
   const passageIds = new Set(state.passages.map(passage => passage.id));
   if (passageIds.size !== state.passages.length ||
