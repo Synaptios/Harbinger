@@ -1,0 +1,19 @@
+diff --git a/apps/server/tests/bootstrap/route-access.test.ts b/apps/server/tests/bootstrap/route-access.test.ts
+--- a/apps/server/tests/bootstrap/route-access.test.ts
++++ b/apps/server/tests/bootstrap/route-access.test.ts
+@@ -20,5 +20,5 @@
+ import { mkdtemp, readdir, readFile } from "node:fs/promises";
+ import { tmpdir } from "node:os";
+-import { join, relative } from "node:path";
++import { join, relative, sep } from "node:path";
+ import { afterAll, beforeAll, describe, expect, it } from "vitest";
+ import { Hono } from "hono";
+@@ -456,7 +456,7 @@
+     const found: string[] = [];
+     for (const dir of dirs) {
+       for (const file of await sourceFiles(join(ROOT, dir))) {
+-        const rel = relative(ROOT, file);
++        const rel = relative(ROOT, file).replaceAll(sep, "/");
+         if (allowed(rel)) continue;
+         const lines = (await readFile(file, "utf8")).split("\n");
+         for (const [index, line] of lines.entries()) {
