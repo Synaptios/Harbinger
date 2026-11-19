@@ -43,9 +43,13 @@ const routes = [
   },
 ];
 const onlyRefusal = process.argv.includes('--refusal');
-const checkpoint = process.env.HARBINGER_PLAYTEST_REFUSAL_SAVE;
-if (checkpoint && !onlyRefusal) throw new Error('Use --refusal when restoring a guild-room checkpoint.');
-const selectedRoutes = onlyRefusal ? [{ ...routes[1], moves: routes[1].moves.slice(checkpoint ? 1 : 0) }] : routes;
+const onlyAftermath = process.argv.includes('--aftermath');
+const checkpoint = onlyRefusal ? process.env.HARBINGER_PLAYTEST_REFUSAL_SAVE : process.env.HARBINGER_PLAYTEST_AFTERMATH_SAVE;
+if (onlyAftermath && (!checkpoint || onlyRefusal)) throw new Error('Use --aftermath with a shutter checkpoint.');
+if (checkpoint && !onlyRefusal && !onlyAftermath) throw new Error('Choose the route that corresponds to the checkpoint.');
+let selectedRoutes = routes;
+if (onlyRefusal) selectedRoutes = [{ ...routes[1], moves: routes[1].moves.slice(checkpoint ? 1 : 0) }];
+if (onlyAftermath) selectedRoutes = [{ ...routes[0], moves: routes[0].moves.slice(-2) }];
 
 function outputObject(envelope) {
   const output = (envelope.output ?? []).flatMap(item => item.type === 'message' ? item.content : [])
@@ -161,7 +165,8 @@ try {
   });
   const opened = await response.json();
   if (!response.ok) throw Error('Covel opening failed with HTTP ' + response.status);
-  if (checkpoint && opened.scene.id !== 'guildInspection') throw Error('The checkpoint must end in the guild room');
+  const checkpointScene = onlyRefusal ? 'guildInspection' : 'shutter';
+  if (checkpoint && opened.scene.id !== checkpointScene) throw Error('The checkpoint is from the wrong scene');
   const opening = {
     ms: Math.round(performance.now() - started), words: opened.passages[0].paragraphs.join(' ').trim().split(/\s+/u).length,
     restored: Boolean(checkpoint),

@@ -31,6 +31,6 @@ Run `npx playwright install chromium` once, then `npm test`. To use a supported 
 
 To exercise the Covel browser suite, run `npm run covel:setup` and set `HARBINGER_TEST_COVEL=1` before running `npm test`. The test uses the pinned runtime and a local, deterministic provider response.
 
-For model-enabled free text, set `HARBINGER_MODEL_URL` to an OpenAI-compatible Chat Completions endpoint that accepts JSON mode and `HARBINGER_MODEL_NAME` to its model ID. Set `HARBINGER_MODEL_KEY` if the endpoint requires a key. For models that accept a reasoning setting, set `HARBINGER_REASONING_EFFORT` as well. Use your environment or the gitignored `.env` file, then restart the app. The authored action buttons also work with the fixed-response engine.
+For model-enabled free text in the original app, set `HARBINGER_MODEL_URL` to an OpenAI-compatible Chat Completions endpoint that accepts JSON mode and `HARBINGER_MODEL_NAME` to its model ID. Set `HARBINGER_MODEL_KEY` if the endpoint requires a key. For models that accept a reasoning setting, set `HARBINGER_REASONING_EFFORT` as well. Use your environment or the gitignored `.env` file, then restart the app. The authored action buttons also work with the fixed-response engine.
 
-The [architecture proposal](docs/architecture.md) and [research review](docs/research.md) document the setting and viewpoint rules. The [live playtest report](docs/playtest.md) records the same-model comparison and browser checks.
+The [architecture proposal](docs/architecture.md) and [research review](docs/research.md) document the setting and viewpoint rules. The [Covel playtest](docs/covel-playtest.md) includes the live comparison and browser checks. The [original playtest](docs/playtest.md) records the earlier comparison.

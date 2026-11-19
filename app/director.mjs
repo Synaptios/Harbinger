@@ -141,13 +141,17 @@ export function directScene(view, passages, speakers) {
   if (evidence.some(item => item.supersedes && item.status === 'firsthand')) {
     focus = ['What does the written record add to what the clerk heard?', 'Let the clerk encounter the evidence and hear only the interpretations the people present can make.'];
   } else if (evidence.some(item => item.topic === 'oven-closure' && item.status === 'reported')) {
-    focus = ['How will the clerk respond to news of the missed inspection?', 'Bring the news through its reachable source. Leave the clerk free to verify it or walk away.'];
+    focus = ['How will the clerk respond to news of the missed inspection?', 'Let the witness bring the report and let someone make the cost immediate. Give the clerk a concrete chance to verify the account or leave.'];
   } else if (evidence.some(item => item.topic === 'appointment')) {
     focus = ['What is Alice prepared to set aside to speak with the clerk?', 'Give the appointment a practical cost to Alice and leave the next decision to the clerk.'];
   } else if (view.turn?.kind === 'interrupted') {
     focus = ['How will the clerk respond to being stopped?', 'Show the action through the interruption and stop before any later attempted step.'];
+  } else if (speakers.some(speaker => speaker.suggestedReplies?.length)) {
+    focus = ['What does this exchange let the other person ask, admit, or decline?', 'Let the addressed person respond to the clerk’s actual words. Give their answer room to affect the conversation before returning to other business.'];
+  } else if (latest.heading === 'What Alice remembers') {
+    focus = ['What is Alice prepared to ask of the clerk now?', 'Make the earlier choice legible through what Alice remembers and let her reaction shape this encounter.'];
   } else if (latest.heading === 'A moment to look') {
-    focus = ['What becomes apparent when the clerk looks more closely?', 'Let observable details and nearby work carry the quiet moment. The clerk determines what to do next.'];
+    focus = ['What becomes apparent when the clerk looks more closely?', 'Choose an observed detail that tells the clerk something about the people or the stakes in the room. Leave the next decision with the clerk.'];
   }
   const [dramaticQuestion, beat] = focus;
   const interrupted = view.turn?.kind === 'interrupted';

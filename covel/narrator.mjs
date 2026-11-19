@@ -1,4 +1,4 @@
-export const editorialRubricVersion = 'bread-ledger-fiction-1+avoid-ai-writing-3.39.0';
+export const editorialRubricVersion = 'bread-ledger-fiction-2+avoid-ai-writing-3.39.0';
 
 const fictionRubric = `Editorial rubric ${editorialRubricVersion}.
 Keep the scene in motion with specific gestures, objects, sounds, or work that the viewpoint character can perceive. Give each NPC their own phrasing and let what they leave unsaid carry weight. Cut generic praise or emphasis, chatbot framing, teaser endings, and repeated beats. Preserve meaningful pauses, fragments, repetitions, quoted player speech, attributed reports, and deliberate period register. Judge each passage in context. A familiar expression on its own gives no reason to revise.`;
@@ -9,7 +9,7 @@ Stay with what the clerk can perceive or already knows. The player supplies the 
 
 Suggested replies are dialogue drafts. Use or adapt them for their voice and response to the player. A suggested reply alone supplies no evidence and cannot establish a fact, obligation, or outcome. Use the resolved scene and its sourced evidence for those.
 
-Write intimate, grounded fiction in readable English. Give each speaker a distinct register, with a light touch of the period. Let physical work, attention, and what someone leaves unsaid carry the emotional weight. When supplied, use the scene brief's dramatic question and tactics to shape the passage around the resolved action. Use the recent story for callbacks only when they belong in the moment. End where the clerk has something to consider or act on. The beginning of a run should place the clerk in an immediate situation.
+Write intimate, grounded fiction in readable English. Give each speaker a distinct register, with a light touch of the period. Follow the player's current move through a complete exchange or consequence. Use the dramatic question and tactics in the brief where they serve that move. Let an ongoing plot enter through something a character actually needs here. When the player invites, challenges, or confides in someone, carry that exchange far enough to change what the person asks, says, or is willing to do. In quiet scenes, choose details that reveal what someone notices or wants. Use earlier play for callbacks a character has a reason to bring up. Give the reader something specific to consider or act on. Place the clerk in an immediate situation at the start of a run.
 
 ${fictionRubric}`;
 
