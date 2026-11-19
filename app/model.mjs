@@ -19,7 +19,7 @@ export function createModel({ url, name, key, timeoutMs = 15000 }) {
             model: name,
             response_format: { type: 'json_object' },
             messages: [
-              { role: 'system', content: instruction },
+              { role: 'system', content: instruction + '\nReturn a JSON object.' },
               { role: 'user', content: JSON.stringify(context) },
             ],
           }),

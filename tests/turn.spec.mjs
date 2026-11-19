@@ -50,6 +50,10 @@ test('a configured provider interprets a turn from player-visible context', asyn
     let body = '';
     for await (const chunk of incoming) body += chunk;
     submitted = JSON.parse(body);
+    if (!submitted.messages.some(message => /\bjson\b/i.test(message.content))) {
+      response.writeHead(400).end();
+      return;
+    }
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ choices: [{ message: { content: '{"intents":[{"type":"observe"},{"type":"take-ledger"}]}' } }] }));
   });
