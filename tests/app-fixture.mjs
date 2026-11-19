@@ -12,7 +12,19 @@ export async function startApp(options = {}) {
     server = createHarbinger({ databasePath, ...options });
     server.listen(port, '127.0.0.1');
     await once(server, 'listening');
-    return `http://127.0.0.1:${server.address().port}`;
+    const url = `http://127.0.0.1:${server.address().port}`;
+    if (options.engine === 'covel') {
+      // The bridge launches Covel on its first storage request, after HTTP is already listening.
+      try {
+        const response = await fetch(`${url}/api/saves`, { signal: AbortSignal.timeout(20_000) });
+        if (!response.ok) throw new Error(`The Covel fixture could not list saves (${response.status}).`);
+        await response.json();
+      } catch (error) {
+        await stop();
+        throw error;
+      }
+    }
+    return url;
   };
   const stop = async () => {
     if (!server?.listening) return;

@@ -3,8 +3,7 @@ version: 0.1.0
 displayName: Harbinger
 description: Resolves and narrates The Bread Ledger.
 provides:
-  - contract: narrative-engine@2
-    default: true
+  - narrative-engine@2
 conflicts:
   - narrative-engine@2
 contributes:

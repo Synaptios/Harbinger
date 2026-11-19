@@ -7,18 +7,9 @@ test.skip(!process.env.HARBINGER_TEST_COVEL, 'Run the Covel browser suite with H
 
 const storehouseTally = 'The guild tallies each sack by its mark before putting it on a shelf.';
 const supperInvitation = 'Will you come to supper when your work is done?';
-const supperReply = 'You saved me the second count, and I still have the last shelf to reckon with.';
-const scene = `A cart wheel has worn a hollow in the stone nearest the gate. It takes the man leading the cart a while to get it out. He puts his shoulder against the wood and tells his horse to stand. When the wheel comes free he steps back with both hands open. The horse seems to have known all along where it was going. It waits until he is beside it before going on up the lane.
+const supperReply = 'You spared me a second count. I still have marks to check.';
 
-Somebody has set a piece of dry board across the gutter. The rain runs under it in a little rush. One edge has gone pale where shoes have passed over it. A boy with a cloth over his head is standing on that edge to keep his feet out of the water. He waits for a woman carrying a basket to pass, then moves the board back into its place with his foot.
-
-Beyond the board the stone wall has been repaired low down. The new mortar is still coarse and dark. Here and there a loose grain has caught in the wool of a sleeve brushing past it. The sleeve belongs to a man whose hands are full of short lengths of rope. He stops to gather them against his chest, looking down to make sure he has lost none. One length has been knotted with a scrap of red thread. He lifts that one to the top of the bundle.
-
-In the doorway where two courses of brick meet, an iron hook has been set at the height of a man's shoulder. Its tip shines more brightly than the rest. Someone has used it to hang a wet length of sailcloth. Water gathers there a drop at a time and makes a dark line in the dust below. The line breaks around a little stone. The stone holds its place while the water finds a way down against the wall.
-
-The man with the rope calls after the cart. He has something in his bundle he means to give the driver. He lifts his chin and calls again, saying the name more slowly this time. At the end of the lane the driver stops and looks back. Neither man hurries toward the other. The boy gives the board another nudge with his heel and comes out from beside the wall. The cart is out of the gutter now, and there is room for two people to walk abreast.`;
-
-async function withStorehouseProvider(getAppearance, run) {
+async function withStorehouseProvider(getAppearance, run, dialoguePrompts = []) {
   const provider = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
@@ -29,27 +20,21 @@ async function withStorehouseProvider(getAppearance, run) {
       case 'harbinger_storehouse':
         result = getAppearance();
         break;
-      case 'harbinger_review':
-        result = { hardFailures: [], editorial: null };
-        break;
-      case 'harbinger_passage':
-        result = { prose: [...context.currentScene.paragraphs, scene, ...(context.speakerEvidence ?? [])
-          .filter(speaker => speaker.speaker === 'Thomas')
-          .flatMap(speaker => (speaker.suggestedReplies ?? []).map(reply => `“${reply}” Thomas says.`))].join('\n\n') };
-        break;
       case 'harbinger_interpret':
         result = { intents: [context.text.includes(supperInvitation)
           ? { type: 'speak', actorId: context.audience.find(actor => actor.name === 'Thomas')?.id, words: supperInvitation }
           : { type: 'choice', choice: 'Cross to Dover' }] };
         break;
       case 'harbinger_actor_reply':
+        dialoguePrompts.push(context);
         result = {
-          reply: context.actor.name === 'Thomas' && context.relationship?.trust > 0 ? supperReply : 'I have to finish the count.',
-          commitment: null,
+          reply: context.evidence.some(item => item.topic === 'storehouse-help' && item.status === 'firsthand')
+            ? supperReply : 'I have to finish the count.',
+          meetingId: null,
         };
         break;
       default:
-        result = { thought: 'I must finish counting before I leave.' };
+        result = { index: 0 };
     }
     response.setHeader('Content-Type', 'application/json');
     response.end(JSON.stringify({
@@ -77,6 +62,7 @@ async function withStorehouseProvider(getAppearance, run) {
 test('the Covel story discovers an allowed storehouse and remembers its porter after restart', async ({ page }) => {
   test.slow();
   let appearance = { porterName: 'Thomas', sign: 'Sedge' };
+  const dialoguePrompts = [];
   await withStorehouseProvider(() => appearance, async app => {
     const press = name => page.getByRole('button', { name, exact: true }).click();
     const story = page.getByRole('region', { name: 'Story passage' });
@@ -112,12 +98,16 @@ test('the Covel story discovers an allowed storehouse and remembers its porter a
     await expect(latest.getByRole('heading', { name: 'A word with Thomas' })).toBeVisible();
     await expect(latest).toContainText(supperReply);
     await expect(latest).not.toContainText(storehouseTally);
+    expect(dialoguePrompts.at(-1).evidence).toContainEqual(expect.objectContaining({
+      topic: 'storehouse-help', source: 'Counted with the porter at the storehouse', status: 'firsthand',
+    }));
+    expect(JSON.stringify(dialoguePrompts.at(-1).evidence)).not.toContain(storehouseTally);
 
     await press('Ask the porter about the guild tally');
     await expect(latest).toContainText(storehouseTally);
     await press('Journal');
     await expect(journal.getByText(storehouseTally)).toBeVisible();
-  });
+  }, dialoguePrompts);
 });
 
 test('a proposal beyond the storehouse slot leaves its only route and local knowledge intact', async ({ page }) => {

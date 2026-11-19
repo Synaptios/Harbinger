@@ -6,20 +6,17 @@ import { startApp } from './app-fixture.mjs';
 
 test.skip(!process.env.HARBINGER_TEST_COVEL, 'Run the Covel browser suite with HARBINGER_TEST_COVEL=1.');
 
-const privateThought = 'I must put the Tower carter’s tally back before Martin comes.';
-const paragraph = `In the lane beyond the open door a child crouches to tie a loose cord on one shoe. An empty barrow passes and she has to stand up before she has finished. The sound of its wheel stays in the room for a moment. Alice lifts the edge of the folded paper on the table just high enough to see how many lines are already filled. Low down on the wood, under the mark of an old nail, there is a streak of clay somebody has brought in from the river.`;
-const prose = Array.from({ length: 5 }, () => paragraph).join('\n\n');
+const privateThought = 'I can let them take the flour. I cannot let them read the names. I still remember what the carter said. “The blue loaf wakes at low tide.”';
 
-async function withCovelProvider(run, { beforePassage } = {}) {
+async function withCovelProvider(run, { beforeThought } = {}) {
   const provider = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString());
     const responses = typeof body.input === 'string';
     const context = JSON.parse(responses ? body.input : body.messages[1].content);
-    if (context.currentScene && !context.candidate) await beforePassage?.(context.currentScene);
-    const result = context.actor ? { thought: privateThought }
-      : context.candidate ? { hardFailures: [], editorial: null } : { prose };
+    if (context.situation) await beforeThought?.(context.situation);
+    const result = { index: 0 };
     const text = JSON.stringify(result);
     response.setHeader('Content-Type', 'application/json');
     response.end(JSON.stringify(responses
@@ -136,7 +133,7 @@ test('a complete Covel export restores privately while the shareable story stays
     expect(complete.toString()).toContain(note);
     const shared = (await download('Export shareable story')).toString();
     expect(shared).toContain('Thames landing');
-    expect(shared).toContain(paragraph);
+    expect(shared).toContain('A carter folds a tarpaulin over the last sack.');
     expect(shared).not.toContain(privateThought);
     expect(shared).not.toContain(note);
 
@@ -259,6 +256,6 @@ for (const width of [320, 1280]) {
       } finally {
         releaseTurn();
       }
-    }, { beforePassage: scene => scene.heading === 'The last entry' ? pause : undefined });
+    }, { beforeThought: situation => situation.topic === 'guildInspection' ? pause : undefined });
   });
 }

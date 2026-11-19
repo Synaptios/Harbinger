@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,8 +14,8 @@ const node = join(nodeBin, 'node' + suffix);
 const pnpm = join(pnpmDir, 'pnpm' + suffix);
 const env = { ...process.env, PATH: [nodeBin, pnpmDir, process.env.PATH].join(delimiter) };
 
-function run(command, args, cwd) {
-  execFileSync(command, args, { cwd, env, stdio: 'inherit' });
+function run(command, args, cwd, commandEnv = env) {
+  execFileSync(command, args, { cwd, env: commandEnv, stdio: 'inherit' });
 }
 
 mkdirSync(data, { recursive: true });
@@ -25,9 +25,19 @@ if (!existsSync(checkout)) {
 const installedCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout, encoding: 'utf8' }).trim();
 if (installedCommit !== covelCommit) throw new Error(`Covel must be checked out at ${covelCommit}.`);
 
+const patchesPath = fileURLToPath(new URL('./patches/', import.meta.url));
+for (const name of readdirSync(patchesPath).filter(name => name.endsWith('.patch')).sort()) {
+  const patch = fileURLToPath(new URL(`./patches/${name}`, import.meta.url));
+  const applied = spawnSync('git', ['apply', '--reverse', '--check', patch], { cwd: checkout, stdio: 'ignore' });
+  if (applied.status !== 0) run('git', ['apply', patch], checkout);
+}
+
 const npm = process.env.npm_execpath;
 if (!npm) throw new Error('Use npm run covel:setup.');
 run(process.execPath, [npm, 'install', '--prefix', toolchain, '--no-audit', '--no-fund', 'node@26.12.1', 'pnpm@12.14.0'], data);
 run(pnpm, ['--filter', '@covel/server...', '--filter', '@covel/web...', 'install', '--frozen-lockfile', '--ignore-scripts'], checkout);
 run(node, ['scripts/ensure-plugin-sdk.mjs'], checkout);
-run(pnpm, ['--filter', '@covel/web', 'exec', 'vite', 'build'], checkout);
+run(pnpm, ['--filter', '@covel/web', 'exec', 'vite', 'build'], checkout, {
+  ...env,
+  VITE_HARBINGER_SETTINGS: 'true',
+});

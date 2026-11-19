@@ -1,6 +1,7 @@
 import { advanceAgenda, honorMeeting, offeredMeetings, selectInspectionConsequence, timeOfDay } from './director.mjs';
 import { conversationChoices, initialKnowledge, visibleObservations } from './knowledge.mjs';
 import { generatedChoices, generatedScene } from './generated.mjs';
+import { campaignPublic, campaignScene, campaignStart, campaignTime, campaignTurn, openDramaticChapter, startCampaign } from './campaign.mjs';
 
 export const title = 'The Bread Ledger';
 export const worldVersion = 'malory-everymans-book-xxi.v1';
@@ -11,13 +12,16 @@ const scenes = {
     paragraphs: [
       'A crier’s voice carries through the flour dust. The proclamation says Arthur died fighting Launcelot overseas. Alice sets a loaf upside down to cool. She keeps working after the voice has gone.',
       'Martin, the guild officer, rests the delivery book beside the scales. “At dusk. This book, a pair of honest totals, and I can keep the ovens open.”',
+      'He turns the book so you can see the margin. “An account goes down under the name of whoever brought it. Leave the witness line for somebody who can tell you what they saw.”',
       'When the door shuts, Alice wipes her hands on her apron. “I stood surety for you once. I won’t ask you to owe me. Come to the river and look at what’s waiting there.”',
     ],
     choices: ['Go with Alice to the river', 'Ask the carters in the market', 'Take the ledger to Martin'],
     observation: { kind: 'claim', title: 'The proclamation', text: 'The crier says Arthur died fighting Launcelot overseas.', source: 'London crier', status: 'reported' },
     additionalObservations: [
       { kind: 'person', title: 'Alice', text: 'Alice is the baker who once stood surety for the clerk.', source: 'Conversation at the bakehouse', status: 'firsthand' },
-      { kind: 'person', title: 'Martin', text: 'Martin is the guild officer who asked the clerk to bring the ledger to the inspection at dusk.', source: 'Conversation at the bakehouse', status: 'firsthand' },
+      { kind: 'person', title: 'Martin', topic: 'ledger-dusk', text: 'Martin is the guild officer who asked the clerk to bring the ledger to the inspection at dusk.', source: 'Conversation at the bakehouse', status: 'firsthand', witnesses: ['alice', 'martin'] },
+      { kind: 'clue', title: 'Martin’s witness rule', topic: 'guild-witness-rule', text: 'Martin enters a report under the name of the person who brought it. He keeps a separate witness line for someone who saw the event and can answer questions about it.', source: 'Martin at the bakehouse book', status: 'firsthand', witnesses: ['martin'] },
+      { kind: 'clue', title: 'Alice’s invitation to the Thames', topic: 'flour-handoff', text: 'Alice asked the clerk to come to the Thames landing to see where the flour is waiting. She did not name a destination beyond the landing.', source: 'Conversation at the bakehouse', status: 'firsthand', witnesses: ['alice'] },
     ],
   },
   guildInspection: {
@@ -28,6 +32,9 @@ const scenes = {
     ],
     choices: ['Give Martin the names', 'Return to the bakehouse with the ledger'],
     observation: { kind: 'place', title: 'The guild room', text: 'Martin receives the day’s accounts in the guild room.', source: 'Seen at the guild room', status: 'firsthand' },
+    additionalObservations: [
+      { kind: 'claim', title: 'Names at the guild table', topic: 'ledger-names', text: 'Martin asks for the names against the flour. Alice says there is a person after every number and asks the clerk to read slowly.', source: 'At the guild table', status: 'firsthand', witnesses: ['alice', 'martin'] },
+    ],
   },
   licensedOven: {
     heading: 'The key comes off the nail', location: 'London · Alice’s bakehouse', time: 'After dusk',
@@ -48,7 +55,10 @@ const scenes = {
       '“Six sacks,” Alice says. “Enough to keep them on their feet. I know what six sacks are worth. I’m asking you what the names beside them are worth.”',
     ],
     choices: ['Help Alice load the flour'],
-    observation: { kind: 'place', title: 'Thames landing', text: 'Six sacks of flour wait at the landing.', source: 'Seen at the landing', status: 'firsthand' },
+    observation: {
+      kind: 'place', title: 'Thames landing', text: 'Six sacks of flour wait at the landing.',
+      source: 'Seen at the landing', status: 'firsthand', witnesses: ['alice', 'river-carter'],
+    },
   },
   shutter: {
     heading: 'A key at dusk', location: 'London · Bakehouse lane', time: 'Dusk',
@@ -58,6 +68,15 @@ const scenes = {
     ],
     choices: ['Read the guild notice', 'Leave the guild notice unread'],
     observation: { kind: 'claim', topic: 'oven-closure', title: 'The oven may be sealed', text: 'An errand boy says Martin ordered Alice’s oven sealed.', source: 'Errand boy', status: 'reported' },
+  },
+  shutterNotice: {
+    heading: 'The sealed shutter', location: 'London · Bakehouse lane', time: 'Dusk',
+    paragraphs: [
+      'The last sack goes over the gunwale as the dusk bell sounds. Back in the lane, Alice stops beside the bakehouse.',
+      'The shutter is barred. A piece of paper lies under a square of guild wax. Alice reaches for the key at her waist and leaves it where it hangs.',
+    ],
+    choices: ['Read the guild notice', 'Leave the guild notice unread'],
+    observation: { kind: 'clue', title: 'The barred shutter', text: 'The bakehouse shutter is barred and a guild paper is pinned to it.', source: 'Seen in Bakehouse lane', status: 'firsthand' },
   },
   notice: {
     heading: 'The order on the shutter', location: 'London · Alice’s bakehouse', time: 'Dusk',
@@ -93,7 +112,10 @@ const scenes = {
       'Alice recognizes the mark for flour beside a cart she used last week. She turns her head as if someone has said her name, but the market is still bargaining around her.',
     ],
     choices: ['Wait for the market tally'],
-    observation: { kind: 'place', title: 'Carters’ market', text: 'The carters keep a tally of their hired carts.', source: 'Seen in the carters’ market', status: 'firsthand' },
+    observation: {
+      kind: 'place', title: 'Carters’ market', topic: 'wax-tally', text: 'The carter scores the hired-cart tally into wax. He can tell who paid but needs the last tally to say where a load went.',
+      source: 'Seen in the carters’ market', status: 'firsthand', witnesses: ['alice', 'market-carter'],
+    },
   },
   marketWarning: {
     heading: 'A warning by the stall', location: 'London · Carters’ market', time: 'Dusk',
@@ -102,7 +124,11 @@ const scenes = {
       '“The guild has closed Alice’s oven,” he says. “Her apprentice buys her bread here. Tell her that one more unpaid loaf will go on his tally.” He leaves a folded copy of the order on the stall.',
     ],
     choices: ['Read the market copy of the order', 'Leave the market copy unread'],
-    observation: { kind: 'claim', topic: 'oven-closure', title: 'Closure reported at the market', text: 'A guild runner says Alice’s oven has been closed.', source: 'Guild runner', status: 'reported' },
+    observation: { kind: 'claim', topic: 'oven-closure', title: 'Closure reported at the market', text: 'A guild runner says Alice’s oven has been closed.', source: 'Guild runner', status: 'reported', witnesses: ['guild-runner'] },
+    additionalObservations: [
+      { kind: 'claim', title: 'The runner’s folded copy', topic: 'closure-source', text: 'The runner brought a written copy of the guild order to the market stall. He has the closure from the order.', source: 'Order the runner carried', status: 'reported', witnesses: ['guild-runner'] },
+      { kind: 'clue', title: 'The completed cart tally', topic: 'completed-wax-tally', text: 'The carter set the completed tally on the market stall.', source: 'Seen at the market stall', status: 'firsthand', witnesses: ['market-carter'] },
+    ],
   },
   marketNotice: {
     heading: 'The folded order', location: 'London · Carters’ market', time: 'Dusk',
@@ -112,6 +138,9 @@ const scenes = {
     ],
     choices: ['Help Alice find another oven'],
     observation: { kind: 'clue', confirms: 'oven-closure', title: 'Guild closure order', text: 'No ledger was produced at the inspection. The order closes Alice’s oven until the stock is accounted for.', source: 'Guild copy left at the market stall', status: 'firsthand' },
+    additionalObservations: [
+      { kind: 'promise', title: 'The baker’s offer', topic: 'oven-hours', text: 'The market baker said his oven goes cold two hours before dawn. He offered Alice those two hours if she can bring wood.', source: 'Market baker at the stall', status: 'firsthand', witnesses: ['market-baker'] },
+    ],
   },
   marketOven: {
     heading: 'Two hours before dawn', location: 'London · Carters’ market', time: 'After dusk',
@@ -158,25 +187,25 @@ function visit(state, scene, playerText, arrival) {
   const passageId = 'passage-' + state.passages.length;
   state.scene = scene;
   state.passages.push({ id: passageId, ...view, paragraphs, playerText, sceneId: scene, minute: state.minute, time: timeOfDay(state.minute) });
-  for (const { confirms, ...observation } of [view.observation, ...(view.additionalObservations ?? [])]) {
+  for (const { confirms, witnesses = [], ...observation } of [view.observation, ...(view.additionalObservations ?? [])]) {
     const prior = confirms && state.observations.findLast(item => item.topic === confirms && item.status === 'reported');
     state.observations.push({
       id: 'observation-' + state.observations.length,
       passageId,
       ...observation,
       ...(prior ? { supersedes: prior.id } : {}),
-      recipients: ['player'],
+      recipients: ['player', ...witnesses],
       minute: state.minute,
     });
   }
 }
 
-export function startEpisode() {
+export function startEpisode({ campaign = false, dramatica = false } = {}) {
   const state = {
     ...initialKnowledge(),
     worldVersion,
     minute: 360,
-    pending: [{ type: 'inspection', minute: 1080 }],
+    pending: dramatica ? [] : [{ type: 'inspection', minute: 1080 }],
     records: [{ type: 'episode-start', minute: 360 }],
     directorTrace: [],
     facts: [
@@ -187,13 +216,20 @@ export function startEpisode() {
     ],
     passages: [],
     observations: [],
+    ...((campaign || dramatica) && { campaign: startCampaign({ dramatica }) }),
   };
+  if (dramatica) return openDramaticChapter(state);
   visit(state, 'bakehouse', null);
   return state;
 }
 
-export function playFixedTurn(state, text) {
+export function playFixedTurn(state, text, chooseInspection) {
   const current = scenes[state.scene];
+  const continued = campaignTurn(state, text, current?.choices.length === 0);
+  if (continued) return continued;
+  if (!current && campaignScene(state)) {
+    return { clarification: 'Choose how to take up the matter here.' };
+  }
   if (!current && generatedScene(state)) {
     return { clarification: 'This storehouse only opens onto the path to the Thames landing.' };
   }
@@ -222,28 +258,34 @@ export function playFixedTurn(state, text) {
   if (choice === 'Help Alice load the flour') {
     result.records.push({ type: 'flour-dispatched', from: 'thames-landing', toward: 'tower', minute: result.minute });
   }
-  const consequence = move.locationId && selectInspectionConsequence(result, move.locationId);
+  const consequence = move.locationId && selectInspectionConsequence(result, move.locationId, chooseInspection);
   let arrival = move.arrival;
   if (move.next === 'firstLight' && !result.records.some(event =>
     event.type === 'flour-dispatched' ||
     (event.type === 'player-action' && event.text.trim().toLowerCase() === 'help alice load the flour'))) {
     arrival = 'The sacks still wait at the landing. The names are still in the book. Behind the shutter, the oven is going cold.';
   }
-  visit(result, consequence ?? move.next, text, arrival);
-  honorMeeting(result);
-  return { state: result };
+  function finish(scene) {
+    visit(result, scene ?? move.next, text, arrival);
+    honorMeeting(result);
+    return { state: result };
+  }
+  return consequence instanceof Promise ? consequence.then(finish) : finish(consequence);
 }
 
 export function playerView(save) {
   const { state } = save;
-  const { heading, location, choices } = scenes[state.scene] ?? generatedScene(state);
+  const continuation = campaignPublic(state);
+  const { heading, location, choices } = scenes[state.scene] ?? generatedScene(state) ?? campaignScene(state);
   const authoredChoices = choices.filter(choice => choice !== 'Give Martin the names' || state.pending.some(event => event.type === 'inspection'));
   const appointments = authoredChoices.length ? offeredMeetings(state).map(item => item.label) : [];
   const offeredChoices = [...authoredChoices, ...conversationChoices(state), ...generatedChoices(state), ...appointments];
+  if (state.campaign && !continuation && !offeredChoices.length) offeredChoices.push(campaignStart);
   return {
     id: save.id, name: save.name, revision: save.revision,
     title, worldVersion: state.worldVersion,
-    scene: { id: state.scene, heading, location, time: timeOfDay(state.minute), minute: state.minute },
+    scene: { id: state.scene, heading, location, time: continuation ? campaignTime(state.minute) : timeOfDay(state.minute), minute: state.minute },
+    ...(continuation && { campaign: continuation }),
     turn: state.turn ?? null,
     passages: state.passages.map(({ id, heading, location, time, playerText, paragraphs }) =>
       ({ id, heading, location, time, playerText, paragraphs })),

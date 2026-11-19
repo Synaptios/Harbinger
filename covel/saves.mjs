@@ -1,5 +1,6 @@
 import { playerView } from '../app/episode.mjs';
 import { safeKeys, validState } from '../app/saves.mjs';
+import { readCommittedStory, storyNamespace } from './save-storage.mjs';
 
 const format = 'harbinger-covel-save';
 const version = 1;
@@ -46,9 +47,10 @@ export function validCovelSave(bundle) {
 }
 
 export async function captureSave(ctx) {
-  const save = (await ctx.store.getPluginData('_hidden.story', 'current'))?.value;
+  const save = await readCommittedStory(ctx.store);
   if (!save) return { ok: false, message: 'Save not found.' };
-  const passages = (await ctx.store.listPluginData('passages')).map(row => row.value).sort((a, b) => a.sequence - b.sequence);
-  const note = (await ctx.store.getPluginData('_hidden.story', 'note'))?.value;
+  const passages = (await ctx.store.listPluginData('passages')).map(row => row.value)
+    .filter(passage => passage.sequence <= save.revision).sort((a, b) => a.sequence - b.sequence);
+  const note = (await ctx.store.getPluginData(storyNamespace, 'note'))?.value;
   return { ok: true, data: packSave(save, passages, note ?? '') };
 }

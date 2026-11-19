@@ -1,7 +1,5 @@
-import { requestStoryObject } from './narrator.mjs';
-
-export function proposeStorehouseAppearance(provider, context, instructions) {
-  return requestStoryObject(provider, {
+export function proposeStorehouseAppearance(complete, context, instructions) {
+  return complete({
     name: 'harbinger_storehouse',
     instructions,
     context,

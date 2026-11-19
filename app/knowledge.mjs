@@ -17,9 +17,14 @@ const proclamation = {
   topic: 'arthur-death', text: 'The proclamation says Arthur died fighting Launcelot overseas.',
   source: 'London crier', minute: 360,
 };
+const weddingSupplies = {
+  actorId: 'martin', topic: 'wedding-supplies', text: 'Wedding supplies are the only errand I have on record.',
+  source: 'Martin’s guild tally', minute: 360, stance: 'entered on record',
+};
 const openingBeliefs = [
   { ...proclamation, actorId: 'alice', stance: 'doubts' },
   { ...proclamation, actorId: 'martin', stance: 'believes' },
+  weddingSupplies,
 ];
 
 export function initialKnowledge() {
@@ -39,18 +44,52 @@ export function visibleObservations(state, actorId) {
 }
 
 export function actorContext(state, actorId) {
-  const actor = (state.actors ?? characters)[actorId] ?? null;
+  const knownActor = (state.actors ?? characters)[actorId];
+  const actor = knownActor ? { ...knownActor, voice: { style: knownActor.voice?.style } } : null;
   const witnessed = new Map(state.records.filter(event => event.type === 'fact-access' && event.minute <= state.minute && event.recipients.includes(actorId))
     .map(event => [event.factId, event.source]));
+  let beliefs = state.beliefs ?? openingBeliefs;
+  if (actorId === 'martin' && !beliefs.some(belief => belief.actorId === actorId && belief.topic === weddingSupplies.topic)) {
+    beliefs = [...beliefs, weddingSupplies];
+  }
   return {
     actor,
     facts: state.facts.filter(fact => (fact.recipients.includes(actorId) || witnessed.has(fact.id)) && (fact.availableFrom ?? 0) <= state.minute)
       .map(({ id, text, source }) => ({ id, text, source: witnessed.get(id) ?? source })),
-    beliefs: (state.beliefs ?? openingBeliefs).filter(belief => belief.actorId === actorId && belief.minute <= state.minute)
+    beliefs: beliefs.filter(belief => belief.actorId === actorId && belief.minute <= state.minute)
       .map(({ actorId, ...belief }) => belief),
     observations: visibleObservations(state, actorId),
     relationship: state.relationships?.find(item => item.from === actorId && item.to === 'player') ?? null,
   };
+}
+
+function spokenWords(text) {
+  return [...text.matchAll(/“([^”]+)”/gu)].map(match => match[1]);
+}
+
+export function speakerHistory(state, actorId) {
+  const name = (state.actors ?? characters)[actorId]?.name;
+  const observations = new Map(state.observations.map(item => [item.id, item]));
+  return state.records.flatMap(event => {
+    if (event.actorId !== actorId || !(event.minute <= state.minute)) return [];
+    if (event.type === 'actor-exchange' && typeof event.reply === 'string') return [event.reply];
+    if (event.type !== 'testimony') return [];
+    if (Array.isArray(event.spoken)) return event.spoken.filter(words => typeof words === 'string');
+    const observation = observations.get(event.observationId);
+    if (!name || !observation || ![name, 'Conversation with ' + name, name + ' at the landing'].includes(observation.source)) return [];
+    return spokenWords(observation.text);
+  });
+}
+
+export function preferFreshWording(options, history) {
+  const normalize = words => words.toLowerCase().replaceAll('’', "'").replace(/\s+/gu, ' ').trim();
+  const lastUse = new Map(history.map((text, index) => [normalize(text), index]));
+  const ages = options.map(text => {
+    const quotations = spokenWords(text);
+    return Math.max(...(quotations.length ? quotations : [text]).map(words => lastUse.get(normalize(words)) ?? -1));
+  });
+  const oldest = Math.min(...ages);
+  return options.filter((_, index) => ages[index] === oldest);
 }
 
 const proclamationOptions = {
@@ -77,6 +116,30 @@ const dialogueActions = {
   marriage: 'Ask Alice whether Guenever married Mordred',
   phrase: 'Ask Alice about the carter’s words',
   statement: 'Read the carter’s sealed statement',
+};
+
+const voicedFollowUps = {
+  [dialogueActions.aliceProclamation]: [
+    'Alice makes room on the board for the next loaf. “I can tell you a man went down the lane saying it. That much I heard myself. If you want to know whether he was right, ask him where he got it before you send the story any farther.”',
+    'Alice pushes the loaf closer to the middle of the board. “He gave out the words as fast as he could walk past. I had long enough to hear him and no time at all to ask who saw it happen. That’s the part I’d have had him stop for.”',
+  ],
+  [dialogueActions.martinProclamation]: [
+    'Martin makes room beside the book. “The guild has to reckon with the proclamation as it stands this morning. If another account comes in, leave me the name of the person who brought it and the date. The two accounts can sit on separate lines.”',
+    'Martin taps the closed book. “There’s a seal on the notice. If you want the name of someone who stood beside Arthur, I have no name to enter there. The book can wait for one.”',
+  ],
+  [dialogueActions.promise]: [
+    'Alice says, “When he asks, he’ll ask as if it were an ordinary thing to put in a book. You’ll have to decide what to do with your answer then. I’d sooner you thought about that now.”',
+  ],
+  [dialogueActions.aliceQueen]: [
+    'Alice says, “I can give you where the carter’s eyes were. I can’t give you what she thought when she went inside. If anybody asks for a name to put under that account, remember how few people stand to gain by giving one.”',
+  ],
+  [dialogueActions.dover]: [
+    'Martin says, “First I’d want to know where the news started. Then I’d want the day it was sent. The hour it got to this table matters to me, but it tells us next to nothing about what a man did on the coast.”',
+    'Martin says, “There’s a space for the date in every entry, and I need more than the date you heard the tale. Find the dispatch or whoever carried it from Dover. Then I’ll have a place to begin.”',
+  ],
+  [dialogueActions.phrase]: [
+    'Alice says, “There were few enough words to keep them as he said them. I held on to them because he asked. Once you start putting explanations around a thing like that, it gets harder to remember which part the man actually said.”',
+  ],
 };
 
 function confidence(state) {
@@ -142,6 +205,13 @@ function dialogueFor(state, action) {
         options: [account
           ? 'Martin draws a separate line in the margin. “I’ll enter the Tower as the clerk’s account. Bring me someone who saw her before I put it among the facts.”'
           : 'Martin turns a page of his tally. “Wedding supplies are the only business I have on record.”'],
+        followUps: account ? [
+          'Martin sets his pen beside the margin. “Your name belongs with the account you brought me. The carter’s name can go beside what he saw once he’s here to give it. I’ll leave room between the two.”',
+          'Martin says, “Anyone who reads the entry can come to you for the account as far as you had it. For what happened at the Tower they should go to the carter. It will help if we can tell them where to find him.”',
+        ] : [
+          'Martin says, “That is the errand I’ve been given to put down. If someone told you she came for another purpose, I’d want the person’s name before I opened a second line for it.”',
+          'Martin says, “I can show you what the tally calls it. If there’s a different account in the lane, tell me who supplied it. I can give a named report a line of its own.”',
+        ],
       };
     }
     case dialogueActions.dover: {
@@ -174,19 +244,24 @@ function dialogueFor(state, action) {
 export async function playConversation(state, choice, scene, model) {
   const action = matchConversation(state, choice);
   if (!action) return false;
-  const { actorId, heading, topic, options, kind = 'claim', outcome, source, access, report } = dialogueFor(state, action);
+  const { actorId, heading, topic, options, followUps = voicedFollowUps[action], kind = 'claim', outcome, source, access, report } = dialogueFor(state, action);
   const context = actorContext(state, actorId);
-  const line = await chooseLine(model, context, topic, options);
+  const history = speakerHistory(state, actorId);
+  const original = await chooseLine(model, context, topic, preferFreshWording(options, history));
+  const followUp = followUps && preferFreshWording(followUps, history)[0];
+  const line = followUp ? original + ' ' + followUp : original;
   advanceAgenda(state, state.minute + 1);
   const passageId = 'passage-' + state.passages.length;
+  const observationId = 'observation-' + state.observations.length;
   state.passages.push({ id: passageId, heading, location: scene.location, time: scene.time, paragraphs: [line], playerText: choice });
   state.observations.push({
-    id: 'observation-' + state.observations.length,
+    id: observationId,
     passageId, kind, title: heading, text: line,
     source: source ?? (kind === 'promise' ? 'Conversation with Alice' : context.actor.name),
-    status: kind === 'claim' ? 'reported' : 'firsthand', topic, recipients: ['player'], minute: state.minute,
+    status: kind === 'claim' ? 'reported' : 'firsthand', topic, recipients: ['player', actorId], minute: state.minute,
   });
-  state.records.push({ type: 'testimony', actorId, topic, minute: state.minute, passageId });
+  const spoken = action === dialogueActions.statement ? [] : spokenWords(line);
+  state.records.push({ type: 'testimony', actorId, topic, minute: state.minute, passageId, observationId, spoken });
   if (report) state.records.push({ type: 'fact-report', factId: report, recipients: ['player'], minute: state.minute, passageId });
   if (access) state.records.push({ type: 'fact-access', ...access, source, minute: state.minute, passageId });
   if (outcome) {

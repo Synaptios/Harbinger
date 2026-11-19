@@ -4,5 +4,8 @@ version: 1.0.0
 defaultLocale: en-US
 summary: A London clerk must choose whose names go into the ledger before dusk.
 plugins:
+  - pack:bread-ledger
   - plugin:harbinger
   - plugin:harbinger-opening
+  - plugin:harbinger-art
+  - plugin:harbinger-voice

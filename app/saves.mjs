@@ -39,6 +39,7 @@ function validInspectorMetadata(state) {
     (state.directorTrace === undefined || rows(state.directorTrace, direction =>
       stringFields(direction, ['id', 'situationId', 'situation', 'eventId', 'actorId', 'locationId', 'reason']) &&
       nonnegativeInteger(direction.minute) &&
+      (direction.focus === undefined || ['evidence', 'cost'].includes(direction.focus)) &&
       (direction.turn === undefined || nonnegativeInteger(direction.turn))));
 }
 

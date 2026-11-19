@@ -1,0 +1,15 @@
+{
+  "id": "harbinger-narration",
+  "label": "Narration",
+  "icon": "volume-2",
+  "groupOrder": 430,
+  "alwaysRender": true,
+  "dataSource": { "namespace": "audio" },
+  "view": {
+    "component": "AudioPlayer",
+    "props": {
+      "playlist": { "$state": "/entries" },
+      "retryAction": { "pluginId": "harbinger-voice", "runtimeId": "harbinger-voice/retry", "payload": { "turnId": { "from": "turnId" } } }
+    }
+  }
+}

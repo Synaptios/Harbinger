@@ -1,0 +1,85 @@
+{
+  "id": "harbinger-gallery",
+  "label": "Illustrations",
+  "icon": "image",
+  "groupOrder": 420,
+  "dataSource": {
+    "namespace": "display"
+  },
+  "emptyState": {
+    "message": "Places and portraits appear after they are revealed in the story."
+  },
+  "view": {
+    "component": "Stack",
+    "repeat": {
+      "statePath": "/entries",
+      "key": "key"
+    },
+    "children": [
+      {
+        "component": "Card",
+        "repeat": {
+          "statePath": {
+            "$item": "value/items"
+          },
+          "key": "id"
+        },
+        "children": [
+          {
+            "component": "Text",
+            "props": {
+              "content": {
+                "$item": "label"
+              },
+              "weight": "bold"
+            }
+          },
+          {
+            "component": "Image",
+            "visible": {
+              "$item": "ref"
+            },
+            "props": {
+              "ref": {
+                "$item": "ref"
+              },
+              "alt": {
+                "$item": "label"
+              },
+              "zoom": true
+            }
+          },
+          {
+            "component": "Button",
+            "visible": {
+              "$item": "failed"
+            },
+            "props": {
+              "label": {
+                "$concat": [
+                  "Retry illustration for ",
+                  {
+                    "$item": "label"
+                  }
+                ]
+              }
+            },
+            "on": {
+              "click": {
+                "action": "invokeRuntime",
+                "params": {
+                  "runtimeId": "harbinger-art/retry",
+                  "payload": {
+                    "id": {
+                      "$item": "id"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

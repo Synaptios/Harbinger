@@ -1,4 +1,6 @@
 import { actorContext } from './knowledge.mjs';
+import { stalledModelResult } from './model.mjs';
+import { campaignActors } from './campaign.mjs';
 
 const sceneActors = {
   bakehouse: ['alice', 'martin'],
@@ -6,6 +8,7 @@ const sceneActors = {
   licensedOven: ['alice'],
   landing: ['alice', 'river-carter'],
   shutter: ['alice', 'errand-boy'],
+  shutterNotice: ['alice'],
   notice: ['alice'],
   firstLight: ['alice'],
   laneDepart: ['alice'],
@@ -21,7 +24,13 @@ const names = {
   'guild-runner': 'Guild runner', 'market-carter': 'Market carter', 'market-baker': 'Market baker',
 };
 
+export function actorName(state, actorId) {
+  return state.actors?.[actorId]?.name ?? names[actorId];
+}
+
 export function sceneActorIds(state) {
+  const campaign = campaignActors(state);
+  if (campaign) return campaign;
   if (state.scene === 'guild-storehouse' && state.generatedStorehouse) {
     const { id, porterId } = state.generatedStorehouse;
     const porter = state.actors?.[porterId];
@@ -39,7 +48,7 @@ function participants(before, state) {
   const newPassages = state.passages.slice(before?.passages.length ?? 0);
   const newestPassage = newPassages.at(-1);
   for (const passage of newPassages) {
-    for (const actorId of sceneActors[passage.sceneId] ?? []) {
+    for (const actorId of passage.actorIds ?? sceneActors[passage.sceneId] ?? []) {
       mark(actorId, 'onstage', passage.minute, passage.heading, passage.sceneId);
     }
   }
@@ -84,6 +93,17 @@ function optionsFor(role, view) {
     'guild-porter': ['I have to keep track of what crosses this threshold. I’ll ask what the clerk needs.'],
   };
   const sources = [role.source];
+  if (role.topic === 'campaign') {
+    const lines = {
+      alice: ['Somebody will have to do the work either way. I want to know what help will actually reach them.'],
+      martin: ['I want someone reading this later to know what was established and what is still open.'],
+      'market-baker': ['The work has to fit around people who already have something promised to them.'],
+      'market-carter': ['I’ll keep to the part of the work I can answer for myself.'],
+      'river-carter': ['People remember different parts of a handoff. I have to keep my own part clear.'],
+      'guild-runner': ['I can tell who gave me the paper. Somebody else may have to answer for what it says.'],
+    };
+    return { lines: lines[role.actorId] ?? ['I want to keep this straight before it passes to somebody else.'], sources };
+  }
   if (role.topic === 'ledger-presented' || role.topic === 'licensedOven') {
     const line = role.actorId === 'alice'
       ? 'I can keep my oven hot. I’m taking the spare key down before I feed the next child.'
@@ -107,9 +127,10 @@ function optionsFor(role, view) {
   return { lines: authored[role.actorId] ?? ['I’ll weigh what I saw before deciding what to do.'], sources };
 }
 
-async function chooseThought(model, view, lines) {
+async function chooseThought(model, view, lines, role) {
   if (!model || lines.length === 1) return lines[0];
   try {
+    if (model.think) return (await model.think(view, role, lines)) ?? lines[0];
     const choice = await model.complete({
       operation: 'actor-thought',
       instruction: 'Select an authored first-person thought from this actor’s point of view. Return a JSON object with its zero-based index. Select only among the offered lines.',
@@ -128,7 +149,7 @@ function draftThoughts(before, state, revision) {
     const { lines, sources } = optionsFor(role, view);
     return { view, lines, role, entry: {
       turn: revision, minute: role.minute, actorId: role.actorId,
-      name: view.actor?.name ?? names[role.actorId] ?? role.actorId,
+      name: actorName(state, role.actorId) ?? role.actorId,
       presence: role.presence, text: lines[0], sources,
     } };
   });
@@ -140,14 +161,16 @@ export function seedThoughts(state) {
 }
 
 export async function recordThoughts(before, state, model, revision) {
-  const entries = await Promise.all(draftThoughts(before, state, revision).map(async ({ view, lines, role, entry }) => ({
-    ...entry, text: model?.think ? (await model.think(view, role)) ?? lines[0] : await chooseThought(model, view, lines),
-  })));
+  const drafts = draftThoughts(before, state, revision);
   state.thoughts ??= [];
-  state.thoughts.push(...entries);
   for (const direction of (state.directorTrace ?? []).slice(before?.directorTrace?.length ?? 0)) {
     direction.turn = revision;
   }
+  const entries = await Promise.all(drafts.map(async ({ view, lines, role, entry }) => {
+    const text = await chooseThought(model, view, lines, role);
+    return text === stalledModelResult ? null : { ...entry, text };
+  }));
+  state.thoughts.push(...entries.filter(Boolean));
 }
 
 export function testingView(save) {

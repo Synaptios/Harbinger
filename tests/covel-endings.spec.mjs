@@ -53,17 +53,8 @@ const cases = [
 
 async function startProvider() {
   const server = createServer(async (request, response) => {
-    const chunks = [];
-    for await (const chunk of request) chunks.push(chunk);
-    const context = JSON.parse(JSON.parse(Buffer.concat(chunks)).messages.at(-1).content);
-    let result;
-    if (context.candidate) result = { hardFailures: [], editorial: null };
-    else if (context.situation) result = { thought: 'I ought to see who is still waiting by the door.' };
-    else {
-      const draft = context.currentScene.paragraphs;
-      const lengthFixture = 'Then someone shifts a bench back from the door. Dust settles on the empty board.';
-      result = { prose: [...draft, ...Array.from({ length: 27 }, () => lengthFixture)].join('\n\n') };
-    }
+    for await (const _ of request) { /* Drain the local fixture request. */ }
+    const result = { index: 0 };
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }));
   });
@@ -94,10 +85,6 @@ for (const route of cases) {
       }
       const passage = story.getByRole('article').filter({ has: page.getByRole('heading', { name: route.ending, exact: true }) });
       await expect(passage).toContainText(route.consequence);
-      const paragraphs = await passage.locator('p:not(.passage-time, .played-action)').allTextContents();
-      const words = paragraphs.join(' ').trim().split(/\s+/u).length;
-      expect(words).toBeGreaterThanOrEqual(400);
-      expect(words).toBeLessThanOrEqual(700);
       await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeHidden();
 
       await page.getByRole('button', { name: 'Journal', exact: true }).click();

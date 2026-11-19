@@ -5,6 +5,11 @@ const inspectionConsequences = [
     reason: 'The inspection sealed the oven. The boy saw the order and was already on the lane where the clerk returned.',
   },
   {
+    id: 'inspection-sealed-shutter', scene: 'shutterNotice', title: 'The sealed shutter',
+    actorId: 'errand-boy', locationId: 'bakehouse-lane', travelMinutes: 0,
+    reason: 'The boy saw the order posted. The clerk can see the shutter and seal on returning to the lane.',
+  },
+  {
     id: 'inspection-at-market', scene: 'marketWarning', title: 'A warning by the stall',
     actorId: 'guild-runner', locationId: 'market', travelMinutes: 8,
     reason: 'The inspection sealed the oven. The guild runner had the market copy of the order and enough time to reach the clerk at the market.',
@@ -99,69 +104,39 @@ export function timeOfDay(minute) {
   return 'After dusk';
 }
 
-export function selectInspectionConsequence(state, locationId) {
+const stagingFocus = {
+  evidence: 'Keep the difference between seeing a posted order and reading its contents clear.',
+  cost: 'Let the work that would have gone on around the oven show why the closure matters.',
+};
+
+export function selectInspectionConsequence(state, locationId, chooseInspection) {
   const inspection = state.records.findLast(event => event.type === 'inspection' && event.outcome === 'oven-sealed');
   if (!inspection || state.directorTrace?.some(entry => entry.eventId === inspection.id)) return null;
-  const consequence = inspectionConsequences.find(candidate =>
+  const eligible = inspectionConsequences.filter(candidate =>
     candidate.locationId === locationId &&
     state.minute >= inspection.minute + candidate.travelMinutes &&
     inspection.sources.some(source => source.actorId === candidate.actorId));
-  if (!consequence) return null;
+  if (!eligible.length) return null;
 
-  state.directorTrace ??= [];
-  state.directorTrace.push({
-    id: `direction-${state.directorTrace.length}`,
-    minute: state.minute,
-    situationId: consequence.id,
-    situation: consequence.title,
-    eventId: inspection.id,
-    actorId: consequence.actorId,
-    locationId: consequence.locationId,
-    reason: consequence.reason,
-  });
-  return consequence.scene;
-}
-
-const sceneFocus = {
-  bakehouse: ['Whose names are worth putting in the ledger?', 'Let the work around the oven and the deadline give the scene its pressure.'],
-  guildInspection: ['What will the clerk let Martin put on record?', 'Make the stakes at the guild table concrete. Leave the decision with the clerk.'],
-  landing: ['What ought the clerk to do about the flour?', 'Let the work at the landing make the decision immediate.'],
-  marketTally: ['What can the clerk learn from the carters before the tally is ready?', 'Give the carters a practical reason for what they will say or do.'],
-};
-const tactics = {
-  Alice: 'Let practical work and the cost of a favor carry what Alice is reluctant to say.',
-  Martin: 'Give Martin a reason to distinguish the record he can sign from what he has heard.',
-};
-
-export function directScene(view, passages, speakers) {
-  const passageIds = new Set(passages.map(passage => passage.id));
-  const evidence = view.observations.filter(item => passageIds.has(item.passageId));
-  const latest = passages.at(-1);
-  let focus = sceneFocus[view.scene.id] ?? ['What has changed for the clerk here?', 'Resolve the immediate result before the scene ends.'];
-  if (evidence.some(item => item.supersedes && item.status === 'firsthand')) {
-    focus = ['What does the written record add to what the clerk heard?', 'Let the clerk encounter the evidence and hear only the interpretations the people present can make.'];
-  } else if (evidence.some(item => item.topic === 'oven-closure' && item.status === 'reported')) {
-    focus = ['How will the clerk respond to news of the missed inspection?', 'Let the witness bring the report and let someone make the cost immediate. Give the clerk a concrete chance to verify the account or leave.'];
-  } else if (evidence.some(item => item.topic === 'appointment')) {
-    focus = ['What is Alice prepared to set aside to speak with the clerk?', 'Give the appointment a practical cost to Alice and leave the next decision to the clerk.'];
-  } else if (view.turn?.kind === 'interrupted') {
-    focus = ['How will the clerk respond to being stopped?', 'Show the action through the interruption and stop before any later attempted step.'];
-  } else if (speakers.some(speaker => speaker.suggestedReplies?.length)) {
-    focus = ['What does this exchange let the other person ask, admit, or decline?', 'Let the addressed person respond to the clerk’s actual words. Give their answer room to affect the conversation before returning to other business.'];
-  } else if (latest.heading === 'What Alice remembers') {
-    focus = ['What is Alice prepared to ask of the clerk now?', 'Make the earlier choice legible through what Alice remembers and let her reaction shape this encounter.'];
-  } else if (latest.heading === 'A moment to look') {
-    focus = ['What becomes apparent when the clerk looks more closely?', 'Choose an observed detail that tells the clerk something about the people or the stakes in the room. Leave the next decision with the clerk.'];
+  function finish(proposal) {
+    const consequence = eligible.find(candidate => candidate.id === proposal?.choice) ?? eligible[0];
+    const focus = Object.hasOwn(stagingFocus, proposal?.focus) ? proposal.focus : undefined;
+    state.directorTrace ??= [];
+    state.directorTrace.push({
+      id: `direction-${state.directorTrace.length}`,
+      minute: state.minute,
+      situationId: consequence.id,
+      situation: consequence.title,
+      eventId: inspection.id,
+      actorId: consequence.actorId,
+      locationId: consequence.locationId,
+      reason: consequence.reason,
+      ...(focus && { focus }),
+    });
+    return consequence.scene;
   }
-  const [dramaticQuestion, beat] = focus;
-  const interrupted = view.turn?.kind === 'interrupted';
-  return {
-    dramaticQuestion,
-    beat: interrupted ? `${beat} Stop before any later attempted step.` : beat,
-    time: view.scene.time,
-    characterTactics: speakers.map(({ speaker }) => ({
-      speaker, tactic: tactics[speaker] ?? 'Let the person speak from the work and evidence they had access to.',
-    })),
-    resolution: evidence.map(({ text, source, status }) => ({ text, source, status })),
-  };
+
+  if (!chooseInspection || eligible.length === 1) return finish();
+  const options = eligible.map(({ id, title }) => ({ id, title }));
+  return Promise.resolve().then(() => chooseInspection({ locationId, options })).then(finish, () => finish());
 }

@@ -1,4 +1,5 @@
 export const interpretInstruction = 'Interpret only the protagonist’s requested actions in order. Return an object with an intents array. Allowed intents: {"type":"choice","choice":"exact visible choice"}, {"type":"observe"}, {"type":"take-ledger"}, {"type":"speak","words":"verbatim words from the supplied input","actorId":"explicitly addressed speaker from audience, if any"}, or {"type":"unclear"}. Never determine the outcome, change world state, or supply invented dialogue for the protagonist.';
+export const stalledModelResult = Symbol('stalledModelResult');
 const instructions = { interpret: interpretInstruction };
 
 export function createModel({ url, name, key, reasoningEffort, timeoutMs = 15000 }) {

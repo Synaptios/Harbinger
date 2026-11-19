@@ -6,33 +6,18 @@ import { startApp } from './app-fixture.mjs';
 test.skip(!process.env.HARBINGER_TEST_COVEL, 'Run the Covel browser suite with HARBINGER_TEST_COVEL=1.');
 
 const invitation = 'Will you come to supper with me after the ovens are shut?';
-const answer = 'Ask me when the boy has eaten. I’ll bring a heel of bread if the oven leaves us one.';
+const answer = 'Not while the oven needs minding. Ask again when the last loaf is out.';
 const secret = 'The blue loaf wakes at low tide.';
-const privateThought = `I told the carter I could keep one phrase to myself. ${secret}`;
+const privateThought = `I can let them take the flour. I cannot let them read the names. I still remember what the carter said. “${secret}”`;
 
-const scene = `Rain ticks against the shallow shelf above the door, where the wood is beginning to split around a nail. Alice moves the empty flour sack away from the draft. It folds in on itself with a little rush of dust, and she puts her foot on the corner to keep it from moving back. The lane smells of a wet fire. Somewhere out beneath the shutters a woman is calling for a child to mind the water that runs along the gutter.
-
-On the far end of the table, Alice has weighed out the flour she is using and the flour she can spare. She puts each portion in its own bowl. The dish nearest the wall is the smaller one. When she takes a lump out of it she works the dough between her fingers a little longer than the first, as if coaxing it to hold together. There is no place on the table to lay a sleeve without leaving a mark on it.
-
-The guild’s book is still beside the scales. An iron weight has been left on top, though the cover is too stiff to lift on its own. A line of water runs through the yard beyond the bakehouse. The carter's wheel has cut a track through the thin clay, and the track has started to fill. A boy steps over it with a bundle too long for his arms. The end of the bundle catches the door frame and he has to turn sideways to bring it in.
-
-Alice brushes a space clear for the wood. She picks out the driest piece by tapping its end on the table. The sound is sharp enough to make the boy look up. She shows him where to set the rest and waits until he has done it. Outside, the woman's voice has stopped. From the oven comes the loose rattle of a lid that has been set back without quite finding its seat.
-
-The boy drops the cord in a coil beside his shoes. It has come undone at one end and picked up a skein of mud. Alice tells him where there is a rag for his hands, then turns the bowl so a mark in its glaze faces the shelf. The pause is long enough for the thin puddle by the door to run into the yard. The lid rattles again. Alice keeps her palm on the table for a moment before she takes it away.`;
-
-function repliesFrom(context) {
-  return [...(context.currentScene?.paragraphs ?? []),
-    ...((context.speakerEvidence ?? []).flatMap(actor => actor.suggestedReplies ?? []))].join(' ');
-}
-
-async function playAgainstProvider(respond, callback, endpoint = 'chat/completions', review = () => ({ hardFailures: [], editorial: null })) {
+async function playAgainstProvider(respond, callback, endpoint = 'chat/completions') {
   const provider = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const input = JSON.parse(Buffer.concat(chunks).toString());
     const instruction = input.instructions ?? input.messages[0].content;
     const context = JSON.parse(input.input ?? input.messages[1].content);
-    const output = context.candidate && !context.repairTargets ? review(context) : respond(instruction, context);
+    const output = respond(instruction, context);
     const content = JSON.stringify(output);
     response.setHeader('Content-Type', 'application/json');
     response.end(JSON.stringify(endpoint === 'responses'
@@ -62,9 +47,8 @@ test('Alice answers a supper invitation in her voice and the reply survives relo
     if (instruction.includes('Interpret only the protagonist')) {
       return { intents: [{ type: 'speak', actorId: 'alice', words: invitation }] };
     }
-    if (context.actor?.id === 'alice' && context.words === invitation) return { reply: answer };
-    const grounds = repliesFrom(context);
-    return { prose: grounds.includes(answer) ? `${scene}\n\n“${answer}” Alice says.` : scene };
+    if (context.actor?.id === 'alice' && context.words === invitation) return { reply: answer, meetingId: null };
+    return { index: 0 };
   }, async app => {
     await page.goto(app.url);
     await page.getByRole('button', { name: 'Begin story' }).click();
@@ -84,18 +68,17 @@ test('the same question to Martin gets a different answer once he hears the cler
   const witnessSource = 'Clerk’s testimony heard in the bakehouse';
   const reported = 'I can enter what you told me under your name. The carter must put his own mark to it.';
   const absent = 'Wedding supplies are the only errand in my book.';
+  const prompts = [];
   await playAgainstProvider((instruction, context) => {
     if (instruction.includes('Interpret only the protagonist')) {
       return { intents: [{ type: 'speak', actorId: 'martin', words: question, choice: null }] };
     }
     if (context.words === question) {
-      const account = context.evidence.find(item => item.source === witnessSource && item.status === 'reported');
-      return { reply: account ? reported : absent };
+      prompts.push(context.evidence);
+      const account = context.evidence.some(item => item.source === witnessSource && item.status === 'reported');
+      return { reply: account ? reported : absent, meetingId: null };
     }
-    if (context.situation) return { thought: 'I need a name beside the evidence before I sign it.' };
-    const moment = repliesFrom(context);
-    const line = [reported, absent].find(reply => moment.includes(reply));
-    return { prose: line ? `${scene}\n\n“${line}” Martin says.` : scene };
+    return { index: 0 };
   }, async app => {
     const root = `${app.url}/api/saves`;
     const play = async (save, text) => {
@@ -123,27 +106,24 @@ test('the same question to Martin gets a different answer once he hears the cler
     const heard = await play(disclosed, `I ask Martin, “${question}”`);
     expect(unheard.passages.at(-1).paragraphs.join(' ')).toContain(absent);
     expect(heard.passages.at(-1).paragraphs.join(' ')).toContain(reported);
-    expect(JSON.stringify(heard)).not.toContain(secret);
+    expect(JSON.stringify(prompts[0])).not.toMatch(/Tower|blue loaf/u);
+    expect(prompts[1]).toContainEqual(expect.objectContaining({
+      source: witnessSource, status: 'reported', text: expect.stringContaining('The clerk says'),
+    }));
+    expect(JSON.stringify(prompts[1])).not.toContain(secret);
   }, 'responses');
 });
 
-test('dialogue draft cannot authorize a commitment that the world never made', async ({ request }) => {
+test('a malformed dialogue response saves a fallback at the next revision', async ({ request }) => {
   const question = 'Is the license safe, Alice?';
   const invented = 'I have paid Martin to keep the oven open.';
-  const revised = 'The license is still Martin’s to issue, and you know what he asked for.';
-  const review = context => {
-    const paragraph = context.candidate.findIndex(line => line.includes(invented)) + 1;
-    const alreadyAuthorized = context.currentScene.paragraphs.some(line => line.includes(invented));
-    return { hardFailures: paragraph && !alreadyAuthorized ? [{ paragraph, kind: 'consequence' }] : [], editorial: null };
-  };
+  const safeReply = 'Tell me what you need, plain as that.';
   await playAgainstProvider((instruction, context) => {
     if (instruction.includes('Interpret only the protagonist')) {
       return { intents: [{ type: 'speak', actorId: 'alice', words: question }] };
     }
     if (context.words === question) return { reply: invented, commitment: null };
-    if (context.repairTargets) return { patches: context.repairTargets.map(({ paragraph }) => ({ paragraph, text: `“${revised}” Alice says.` })) };
-    if (context.situation) return { thought: 'I hope the flour lasts until dusk.' };
-    return { prose: repliesFrom(context).includes(invented) ? `${scene}\n\n“${invented}” Alice says.` : scene };
+    return { index: 0 };
   }, async app => {
     const root = `${app.url}/api/saves`;
     const save = await (await request.post(root, { data: {} })).json();
@@ -152,20 +132,15 @@ test('dialogue draft cannot authorize a commitment that the world never made', a
     });
     expect(response.ok()).toBe(true);
     const next = await response.json();
-    expect(next.passages.at(-1).paragraphs.join(' ')).toContain(revised);
+    expect(next.passages.at(-1).paragraphs.join(' ')).toContain(safeReply);
+    expect(next.revision).toBe(save.revision + 1);
     expect(JSON.stringify(next)).not.toContain(invented);
     expect(next.observations.some(item => item.title === 'Guild license on the shutter')).toBe(false);
-  }, 'responses', review);
+  }, 'responses');
 });
 
 test('a first-person NPC thought is only exposed through the opt-in testing view', async ({ page }) => {
-  await playAgainstProvider((_instruction, context) => {
-    if (context.actor?.id === 'alice' && context.facts?.some(fact => fact.text === secret)) {
-      return { thought: privateThought };
-    }
-    if (context.facts) return { thought: 'I will mark the sums when this is settled.' };
-    return { prose: scene };
-  }, async app => {
+  await playAgainstProvider(() => ({ index: 0 }), async app => {
     await page.goto(app.url);
     await page.getByRole('button', { name: 'Begin story' }).click();
     await page.getByRole('button', { name: 'Promise Alice discretion' }).click();
@@ -201,15 +176,10 @@ test('an NPC’s reachable appointment changes a later passage after reload', as
       return { intents: [{ type: 'speak', actorId: 'alice', words, choice: null }] };
     }
     if (context.words) return {
-      reply: context.words === unreachable ? impossible : 'I could use a word out of his hearing.',
-      commitment: { locationId: context.words === unreachable ? 'tower' : 'thames-landing', purpose: 'flour' },
+      reply: context.words === unreachable ? impossible : 'Perhaps we can talk near the river.',
+      meetingId: context.words === unreachable ? 'tower' : 'thames-landing',
     };
-    if (context.situation) return { thought: 'I have a sack to move before the tide turns.' };
-    if (context.currentScene?.paragraphs.some(line => line.includes(impossible))
-        || context.speakerEvidence?.some(actor => actor.suggestedReplies?.includes(impossible))) {
-      return { prose: `${scene}\n\n“${impossible}” Alice says.` };
-    }
-    return { prose: scene };
+    return { index: 0 };
   }, async app => {
     const root = `${app.url}/api/saves`;
     const begin = async () => (await request.post(root, { data: {} })).json();
@@ -252,14 +222,7 @@ test('an NPC’s reachable appointment changes a later passage after reload', as
 });
 
 test('the director brings the missed inspection through a reachable witness and then a written order', async ({ request }) => {
-  await playAgainstProvider((_instruction, context) => {
-    if (context.situation) return { thought: 'I must settle what belongs in the record.' };
-    const witness = context.sceneBrief?.resolution?.find(item => item.status === 'reported' && item.source === 'Guild runner');
-    const order = context.sceneBrief?.resolution?.find(item => item.status === 'firsthand' && item.source === 'Guild copy left at the market stall');
-    if (witness) return { prose: `${scene}\n\nThe guild runner sets a folded order on the stall. “Alice’s oven has been closed,” he says.` };
-    if (order) return { prose: `${scene}\n\nThe written order says no ledger was produced. The seal has cracked where the runner folded it.` };
-    return { prose: scene };
-  }, async app => {
+  await playAgainstProvider(() => ({ index: 0 }), async app => {
     const root = `${app.url}/api/saves`;
     let save = await (await request.post(root, { data: {} })).json();
     const play = async text => {
@@ -273,7 +236,7 @@ test('the director brings the missed inspection through a reachable witness and 
     await play('Ask the carters in the market');
     expect(save.observations.some(item => item.topic === 'oven-closure')).toBe(false);
     await play('Wait for the market tally');
-    expect(save.passages.at(-1).paragraphs.join(' ')).toContain('The guild runner sets a folded order');
+    expect(save.passages.at(-1).paragraphs.join(' ')).toContain('He leaves a folded copy of the order on the stall.');
     const report = save.observations.find(item => item.source === 'Guild runner');
     expect(report).toMatchObject({ status: 'reported', passageId: save.passages.at(-1).id });
     const testing = await (await request.get(`${root}/${save.id}/testing`)).json();
@@ -281,7 +244,7 @@ test('the director brings the missed inspection through a reachable witness and 
       name: 'Martin', presence: 'offstage', text: expect.stringMatching(/^I /u),
     }));
     await play('Read the market copy of the order');
-    expect(save.passages.at(-1).paragraphs.join(' ')).toContain('The written order says no ledger was produced.');
+    expect(save.passages.at(-1).paragraphs.join(' ')).toContain('No ledger was produced at the inspection.');
     expect(save.observations).toContainEqual(expect.objectContaining({
       title: 'Guild closure order', status: 'firsthand', supersedes: report.id, passageId: save.passages.at(-1).id,
     }));
@@ -290,13 +253,12 @@ test('the director brings the missed inspection through a reachable witness and 
 });
 
 test('a reachable intervention stops remaining steps until the clerk responds', async ({ request }) => {
-  await playAgainstProvider((instruction, context) => {
+  await playAgainstProvider((instruction) => {
     if (instruction.includes('Interpret only the protagonist')) return { intents: [
       { type: 'observe' }, { type: 'choice', choice: 'Wait for the market tally' },
       { type: 'choice', choice: 'Leave the market copy unread' },
     ] };
-    if (context.situation) return { thought: 'I still owe him the last tally.' };
-    return { prose: scene };
+    return { index: 0 };
   }, async app => {
     const root = `${app.url}/api/saves`;
     let save = await (await request.post(root, { data: {} })).json();

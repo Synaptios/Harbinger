@@ -92,7 +92,7 @@ test('ambiguous speech commits a clarification without guessing who the player a
     const draft = 'I ask, “Are you coming with me?”';
     await input.fill(draft);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(story.getByRole('article').last()).toContainText('Who would you like to address here?');
+    await expect(story.getByRole('article').last()).toContainText('Who would you like to address, and what would you like to say aloud?');
     await expect(page.getByRole('button', { name: 'Retry turn' })).toBeHidden();
     await expect(input).toHaveValue('');
     await expect(story.getByRole('article')).toHaveCount(2);

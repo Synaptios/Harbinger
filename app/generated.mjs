@@ -1,5 +1,6 @@
 import { advanceAgenda } from './director.mjs';
 import { actorContext, initialKnowledge } from './knowledge.mjs';
+import { stalledModelResult } from './model.mjs';
 
 const slot = {
   sceneId: 'guild-storehouse',
@@ -48,6 +49,7 @@ async function chooseAppearance(model) {
         instruction: 'Choose one porter name and one sign for the established guild storehouse off the Thames landing. Return JSON with only porterName and sign, selected from the supplied lists. The engine defines the role, location, and knowledge.',
         context: { porterNames: slot.porterNames, signs: slot.signs },
       });
+      if (result === stalledModelResult) return result;
       if (result && Object.keys(result).sort().join(',') === 'porterName,sign' &&
           slot.porterNames.includes(result.porterName) && slot.signs.includes(result.sign)) return result;
     } catch {
@@ -57,8 +59,7 @@ async function chooseAppearance(model) {
   return { porterName: slot.porterNames[0], sign: slot.signs[0] };
 }
 
-async function fillSlot(state, model) {
-  const { porterName, sign } = await chooseAppearance(model);
+function fillSlot(state, { porterName, sign }) {
   state.generatedStorehouse = {
     id: slot.placeId,
     name: sign + ' Storehouse',
@@ -85,7 +86,7 @@ function append(state, scene, playerText, paragraphs, observations = []) {
   for (const observation of observations) {
     state.observations.push({
       id: 'observation-' + state.observations.length,
-      passageId, ...observation, status: 'firsthand', minute: state.minute, recipients: ['player'],
+      passageId, ...observation, status: 'firsthand', minute: state.minute, recipients: observation.recipients ?? ['player'],
     });
   }
   state.records.push({ type: 'generated-encounter', actorId: slot.actorId, minute: state.minute, passageId });
@@ -96,8 +97,10 @@ export async function playGeneratedTurn(state, choice, model) {
   if (!generatedChoices(state).includes(choice)) return false;
   if (choice === actions.visit) {
     const firstVisit = !state.generatedStorehouse;
+    const appearance = firstVisit ? await chooseAppearance(model) : null;
+    if (appearance === stalledModelResult) return appearance;
     advanceAgenda(state, state.minute + slot.travelMinutes);
-    if (firstVisit) await fillSlot(state, model);
+    if (appearance) fillSlot(state, appearance);
     state.scene = slot.sceneId;
     const { name } = state.generatedStorehouse;
     const porter = state.actors[slot.actorId];
@@ -114,6 +117,7 @@ export async function playGeneratedTurn(state, choice, model) {
     const observations = firstVisit ? [
       { kind: 'place', title: name, text: 'The guild storehouse is a short walk from the Thames landing.', source: 'Path from the Thames landing' },
       { kind: 'person', title: porter.name, text: porter.name + ' keeps the storehouse tally as the guild porter.', source: 'Meeting at the storehouse' },
+      { kind: 'clue', topic: 'storehouse-chalk', title: 'The chalk tally', text: 'The porter rested the chalk tally on top of the barrel by the storehouse door.', source: 'At the storehouse door', recipients: ['player', slot.actorId] },
     ] : [];
     append(state, generatedScene(state), choice, paragraphs, observations);
   } else if (choice === actions.leave) {
@@ -130,7 +134,11 @@ export async function playGeneratedTurn(state, choice, model) {
       const passageId = append(state, { ...scene, heading: 'A sorted tally' }, choice, [
         'You read the marks while ' + actor.name + ' moves the sacks into order. The last two were counted twice.',
         '“That would have cost me a day’s wage,” ' + actor.name + ' says, and leaves you a clean place to stand.',
-      ]);
+      ], [{
+        kind: 'clue', topic: 'storehouse-help', title: 'The corrected tally',
+        text: 'The clerk helped the porter compare the marks, and they found the last two sacks counted twice.',
+        source: 'Counted with the porter at the storehouse', recipients: ['player', slot.actorId],
+      }]);
       relationship.trust = 1;
       relationship.source = passageId;
     } else {

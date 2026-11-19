@@ -1,0 +1,906 @@
+diff --git a/apps/web/src/components/AudioPlaylist.tsx b/apps/web/src/components/AudioPlaylist.tsx
+new file mode 100644
+index 0000000..7cf16d2
+--- /dev/null
++++ b/apps/web/src/components/AudioPlaylist.tsx
+@@ -0,0 +1,179 @@
++import { useEffect, useRef, useState } from "react";
++import { useTranslation } from "react-i18next";
++import type { CatalogAction, MediaRef } from "@covel/shared";
++import { invokeCatalogAction } from "@/lib/catalog/catalog-actions.js";
++import { asRecord } from "@/lib/catalog/helpers.js";
++import { isMediaRef } from "@/lib/media-ref-utils.js";
++import { resolveMediaSrc } from "@/lib/media-resolve.js";
++
++interface Clip {
++  speaker: string;
++  ref: MediaRef | null;
++}
++
++interface Track {
++  turnId: string;
++  time: string;
++  failed: boolean;
++  clips: Clip[];
++}
++
++function readTracks(entries: unknown): Track[] {
++  if (!Array.isArray(entries)) return [];
++  const tracks = entries.flatMap((entry: unknown) => {
++    const track = asRecord(asRecord(entry)?.value);
++    if (typeof track?.turnId !== "string" || typeof track.time !== "string" || !Array.isArray(track.clips))
++      return [];
++    const clips = track.clips.flatMap((value: unknown) => {
++      const clip = asRecord(value);
++      return typeof clip?.speaker === "string"
++        ? [{ speaker: clip.speaker, ref: isMediaRef(clip.ref) ? clip.ref : null }] : [];
++    });
++    return [{ turnId: track.turnId, time: track.time, failed: track.status === "failed", clips }];
++  });
++  return tracks.sort((a, b) => a.time.localeCompare(b.time));
++}
++
++export function AudioPlaylist({ sessionId, entries, retryAction }: {
++  sessionId: string;
++  entries: unknown;
++  retryAction?: CatalogAction;
++}) {
++  const { t } = useTranslation();
++  const tracks = readTracks(entries);
++  const [continuous, setContinuous] = useState(false);
++  const [playing, setPlaying] = useState(false);
++  const [cursor, setCursor] = useState<{ turnId: string; index: number }>();
++  const [finished, setFinished] = useState(false);
++  const [src, setSrc] = useState("");
++  const [error, setError] = useState("");
++  const [requesting, setRequesting] = useState<string | null>(null);
++  const audio = useRef<HTMLAudioElement>(null);
++  const trackIndex = tracks.findIndex(track => track.turnId === cursor?.turnId);
++  const selected = tracks[trackIndex];
++  const clip = cursor && selected?.clips[cursor.index];
++
++  function start(track: Track, index = 0) {
++    setCursor({ turnId: track.turnId, index });
++    setFinished(false);
++    setPlaying(true);
++  }
++
++  useEffect(() => {
++    if (!continuous) return;
++    const next = cursor
++      ? finished && tracks.slice(trackIndex + 1).find(track => track.clips[0]?.ref)
++      : tracks.findLast(track => track.clips[0]?.ref);
++    if (next) start(next);
++  }, [continuous, cursor, finished, trackIndex, tracks]);
++
++  const ref = clip?.ref;
++  useEffect(() => {
++    setSrc("");
++    setError("");
++    if (!ref) return;
++    const controller = new AbortController();
++    let ownedUrl: string | undefined;
++    void resolveMediaSrc(ref, { sessionId, signal: controller.signal }).then(result => {
++      if (result.url.startsWith("blob:")) ownedUrl = result.url;
++      if (controller.signal.aborted) {
++        if (ownedUrl) URL.revokeObjectURL(ownedUrl);
++        return;
++      }
++      if (result.ok) setSrc(result.url);
++      else setError("Couldn't load this clip.");
++    }).catch(() => {
++      if (!controller.signal.aborted) setError("Couldn't load this clip.");
++    });
++    return () => {
++      controller.abort();
++      if (ownedUrl) URL.revokeObjectURL(ownedUrl);
++    };
++  }, [ref?.id, ref?.url, ref?.mime, sessionId]);
++
++  useEffect(() => {
++    const element = audio.current;
++    if (element && src && playing) void element.play().catch(() => setPlaying(false));
++    else element?.pause();
++  }, [playing, src]);
++
++  function finishClip() {
++    const next = cursor && selected?.clips[cursor.index + 1]?.ref;
++    if (cursor && next) {
++      start(selected, cursor.index + 1);
++      if (audio.current && next.id === ref?.id) {
++        audio.current.currentTime = 0;
++        void audio.current.play().catch(() => setPlaying(false));
++      }
++      return;
++    }
++    setFinished(true);
++    setPlaying(false);
++  }
++
++  async function retry(turnId?: string) {
++    if (!retryAction) return;
++    setRequesting(turnId ?? "latest");
++    try {
++      await invokeCatalogAction({ action: retryAction, sessionId, scope: { turnId }, t });
++    } finally {
++      setRequesting(null);
++    }
++  }
++
++  return (
++    <div className="space-y-3">
++      <button type="button" className="ui-btn ui-btn-secondary"
++        onClick={() => {
++          setContinuous(!continuous);
++          if (continuous) setPlaying(false);
++          else if (cursor && !finished) setPlaying(true);
++        }}>
++        {continuous ? "Disable continuous narration" : "Enable continuous narration"}
++      </button>
++      {selected && clip && (
++        <div className="space-y-1 rounded-(--radius-card) border border-border p-3">
++          <p className="text-xs text-muted-foreground" aria-live="polite">
++            {clip.speaker} · Clip {(cursor?.index ?? 0) + 1} of {selected.clips.length}
++          </p>
++          {error && <p role="status" className="text-sm text-muted-foreground">{error}</p>}
++          <audio ref={audio} src={src || undefined} onEnded={finishClip}
++            onError={() => setError("Couldn't load this clip.")} preload="auto" />
++          <button type="button" className="ui-btn ui-btn-quiet" disabled={!src}
++            onClick={() => {
++              if (!playing && audio.current) {
++                if (finished) audio.current.currentTime = 0;
++                void audio.current.play().catch(() => setPlaying(false));
++              }
++              setFinished(false);
++              setPlaying(!playing);
++            }}>{playing ? "Pause" : "Play"}</button>
++        </div>
++      )}
++      {tracks.length === 0 && <p className="text-xs text-muted-foreground">Narration appears after the story is saved.</p>}
++      {retryAction && (
++        <button type="button" className="ui-btn ui-btn-quiet" disabled={requesting !== null}
++          onClick={() => void retry()}>Generate latest passage</button>
++      )}
++      <ol className="space-y-1">
++        {tracks.map((track, index) => (
++          <li key={track.turnId} className="flex flex-wrap items-center justify-between gap-1 border-t border-border py-2">
++            <span className="text-xs">Passage {index + 1} · {track.clips.length} {track.clips.length === 1 ? "clip" : "clips"}</span>
++            <button type="button" className="ui-btn ui-btn-quiet" disabled={!track.clips[0]?.ref}
++              onClick={() => {
++                if (cursor?.turnId === track.turnId && cursor.index === 0 && audio.current) {
++                  audio.current.currentTime = 0;
++                  void audio.current.play().catch(() => setPlaying(false));
++                }
++                start(track);
++              }} aria-label={`Replay passage ${index + 1}`}>Replay</button>
++            {retryAction && track.failed && (
++              <button type="button" className="ui-btn ui-btn-quiet" disabled={requesting !== null}
++                onClick={() => void retry(track.turnId)} aria-label={`Retry narration for passage ${index + 1}`}>Retry narration</button>
++            )}
++          </li>
++        ))}
++      </ol>
++    </div>
++  );
++}
+diff --git a/apps/web/src/components/session/right-panel.tsx b/apps/web/src/components/session/right-panel.tsx
+index 9a213f2..3299ea1 100644
+--- a/apps/web/src/components/session/right-panel.tsx
++++ b/apps/web/src/components/session/right-panel.tsx
+@@ -406,7 +406,8 @@ function SessionRightPanel({
+               <TabsContent
+                 key={`plugin-content-${group.id}`}
+                 value={`plugin-${group.id}`}
+-                className="p-4 m-0 max-w-full"
++                forceMount={currentSub?.pluginId === "harbinger-voice" || undefined}
++                className="p-4 m-0 max-w-full data-[state=inactive]:hidden"
+               >
+                 <div
+                   className={`ui-panel-title mb-3 flex min-w-0 items-center gap-2 ${barTabs ? "" : "border-b border-(--rule-color) pb-3"}`}
+diff --git a/apps/web/src/components/session/session-prep/start-panel.tsx b/apps/web/src/components/session/session-prep/start-panel.tsx
+index aaf6b2b..9fd2a0e 100644
+--- a/apps/web/src/components/session/session-prep/start-panel.tsx
++++ b/apps/web/src/components/session/session-prep/start-panel.tsx
+@@ -2,6 +2,7 @@ import { Loader2, Play } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ import type { SeatRole } from "@covel/shared";
+ import { Button } from "@/components/ui/button.js";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+
+ export type ModelLine =
+   | { readonly kind: "ready"; readonly model: string }
+@@ -86,31 +87,33 @@ export function StartPanel(props: StartPanelProps) {
+         )}
+       </div>
+
+-      <p
+-        className={`text-sm ${
+-          props.model.kind === "ready"
+-            ? "text-muted-foreground"
+-            : "text-destructive"
+-        }`}
+-        role={props.model.kind === "ready" ? undefined : "status"}
+-        data-testid="model-line"
+-      >
+-        {props.model.kind === "ready"
+-          ? t("session.modelLineUsing", { model: props.model.model })
+-          : props.model.kind === "no-key"
+-            ? t("session.modelLineNoKey")
+-            : t("session.modelLineNone")}{" "}
+-        <Button
+-          type="button"
+-          variant="link"
+-          className="h-auto p-0 align-baseline text-sm"
+-          onClick={props.onChangeModel}
++      {!HARBINGER_SETTINGS && (
++        <p
++          className={`text-sm ${
++            props.model.kind === "ready"
++              ? "text-muted-foreground"
++              : "text-destructive"
++          }`}
++          role={props.model.kind === "ready" ? undefined : "status"}
++          data-testid="model-line"
+         >
+           {props.model.kind === "ready"
+-            ? t("session.modelLineChange")
+-            : t("session.modelLineSetUp")}
+-        </Button>
+-      </p>
++            ? t("session.modelLineUsing", { model: props.model.model })
++            : props.model.kind === "no-key"
++              ? t("session.modelLineNoKey")
++              : t("session.modelLineNone")}{" "}
++          <Button
++            type="button"
++            variant="link"
++            className="h-auto p-0 align-baseline text-sm"
++            onClick={props.onChangeModel}
++          >
++            {props.model.kind === "ready"
++              ? t("session.modelLineChange")
++              : t("session.modelLineSetUp")}
++          </Button>
++        </p>
++      )}
+
+       <p className="text-sm text-muted-foreground">
+         {props.customOpen
+diff --git a/apps/web/src/components/session/session-settings-drawer.tsx b/apps/web/src/components/session/session-settings-drawer.tsx
+index 297fd73..b981fad 100644
+--- a/apps/web/src/components/session/session-settings-drawer.tsx
++++ b/apps/web/src/components/session/session-settings-drawer.tsx
+@@ -23,6 +23,7 @@ import { sessionSaveLabel } from "@/lib/session-display.js";
+ import { worldDisplayText } from "@/lib/world-locale.js";
+ import { ignoreError } from "@/lib/ignore-error.js";
+ import { useSetting } from "@/settings/use-settings.js";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+
+ export interface SessionSettingsDrawerProps {
+   open: boolean;
+@@ -106,7 +107,12 @@ export function SessionSettingsDrawer({
+             {t("session.drawerTitle")}
+           </DialogTitle>
+           <DialogDescription className="sr-only">
+-            {t("session.drawerDescription")}
++            {HARBINGER_SETTINGS
++              ? t(
++                  "session.harbingerDrawerDescription",
++                  "Manage this game’s saves and plugins.",
++                )
++              : t("session.drawerDescription")}
+           </DialogDescription>
+         </DialogHeader>
+
+@@ -210,19 +216,21 @@ export function SessionSettingsDrawer({
+             />
+           </section>
+
+-          <details className="ui-panel-section group">
+-            <summary className="ui-eyebrow cursor-pointer text-xs">
+-              {t("session.drawerAdvanced")}
+-            </summary>
+-            <div className="mt-3">
+-              <OrchestrationSettings
+-                key={session.id}
+-                sessionId={session.id}
+-                disabled={executing}
+-                refreshKey={sessionPlugins}
+-              />
+-            </div>
+-          </details>
++          {!HARBINGER_SETTINGS && (
++            <details className="ui-panel-section group">
++              <summary className="ui-eyebrow cursor-pointer text-xs">
++                {t("session.drawerAdvanced")}
++              </summary>
++              <div className="mt-3">
++                <OrchestrationSettings
++                  key={session.id}
++                  sessionId={session.id}
++                  disabled={executing}
++                  refreshKey={sessionPlugins}
++                />
++              </div>
++            </details>
++          )}
+         </div>
+       </DialogContent>
+     </Dialog>
+diff --git a/apps/web/src/components/world/world-list-view.tsx b/apps/web/src/components/world/world-list-view.tsx
+index 1739f24..2d70818 100644
+--- a/apps/web/src/components/world/world-list-view.tsx
++++ b/apps/web/src/components/world/world-list-view.tsx
+@@ -24,6 +24,7 @@ import { WorldShowcase } from "@/components/world/world-showcase.js";
+ import { useThemeLayout } from "@/theme-system/use-theme-layout.js";
+ import { matchesWorldQuery } from "@/components/world/editor-helpers.js";
+ import { mostRecentSession } from "@/components/world/use-recent-sessions.js";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+
+ export interface WorldListViewProps {
+   worlds: WorldRecord[];
+@@ -209,7 +210,6 @@ export function WorldListView(props: WorldListViewProps) {
+             </div>
+           </div>
+
+-          {/* Two actions in one frame: each row has room for its full text. */}
+           <aside className="divide-y divide-(--rule-color) overflow-hidden rounded-(--radius-card) border border-(--rule-color) bg-card/60 md:col-span-5">
+             <HeaderAction
+               icon={Wand2}
+@@ -221,9 +221,7 @@ export function WorldListView(props: WorldListViewProps) {
+               )}
+               onClick={onOpenGenerator}
+             />
+-            {/* Only while no model can run: after that, Settings → Models is
+-                the one place to change it. */}
+-            {!primarySlotLabel && (
++            {!HARBINGER_SETTINGS && !primarySlotLabel && (
+               <HeaderAction
+                 icon={Plug}
+                 title={t("session.setupAiTitle")}
+@@ -332,7 +330,7 @@ export function WorldListView(props: WorldListViewProps) {
+               {t("session.pluginsLoaded", { count: enabledPluginCount })}
+             </span>
+           )}
+-          {primarySlotLabel && (
++          {!HARBINGER_SETTINGS && primarySlotLabel && (
+             <span className="inline-flex items-center gap-1.5">
+               <Sparkles className="w-3 h-3" />
+               {primarySlotLabel}
+diff --git a/apps/web/src/components/world/world-showcase.tsx b/apps/web/src/components/world/world-showcase.tsx
+index 4b3a412..d31fa34 100644
+--- a/apps/web/src/components/world/world-showcase.tsx
++++ b/apps/web/src/components/world/world-showcase.tsx
+@@ -25,6 +25,7 @@ import { packageByline, worldPackageInfo } from "@/lib/package-info.js";
+ import { worldLanguageName, worldTextForPlayer } from "@/lib/world-locale.js";
+ import { isWorldDeletable } from "./world-deletion.js";
+ import { WorldUpdateBadge } from "./world-update-badge.js";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+ import {
+   ShowcaseBackdrop,
+   SlideIndicator,
+@@ -359,7 +360,7 @@ export function WorldShowcase({
+             <Wand2 className="h-3.5 w-3.5" />
+             {t("world.aiCreate", "AI Create World")}
+           </button>
+-          {!primarySlotLabel && (
++          {!HARBINGER_SETTINGS && !primarySlotLabel && (
+             <button
+               type="button"
+               onClick={onOpenSettings}
+diff --git a/apps/web/src/lib/catalog/media-renderers.tsx b/apps/web/src/lib/catalog/media-renderers.tsx
+index e3851d0..c330603 100644
+--- a/apps/web/src/lib/catalog/media-renderers.tsx
++++ b/apps/web/src/lib/catalog/media-renderers.tsx
+@@ -4,6 +4,7 @@ import { clsx } from "clsx";
+ import { Media as MediaComponent } from "@/components/Media.js";
+ import { MediaPreviewDialog } from "@/components/MediaPreviewDialog.js";
+ import { AudioPlayer as AudioPlayerComponent } from "@/components/AudioPlayer.js";
++import { AudioPlaylist } from "@/components/AudioPlaylist.js";
+ import {
+   MediaGalleryPanel,
+   JobListPanel,
+@@ -206,6 +207,12 @@ export const AudioPlayerCatalogComponent: ComponentRenderer = ({ element }) => {
+       ? (props.sessionId as string)
+       : sessionId;
+
++  if (Object.hasOwn(props, "playlist")) {
++    const action = catalogActionSchema.safeParse(props.retryAction);
++    return <AudioPlaylist key={overrideSession} sessionId={overrideSession}
++      entries={props.playlist} retryAction={action.success ? action.data : undefined} />;
++  }
++
+   if (!ref) {
+     return (
+       <div
+diff --git a/apps/web/src/lib/model-config-label.ts b/apps/web/src/lib/model-config-label.ts
+index 822ac65..96e990b 100644
+--- a/apps/web/src/lib/model-config-label.ts
++++ b/apps/web/src/lib/model-config-label.ts
+@@ -8,7 +8,9 @@ export function formatModelConfigLabel(config: {
+   reasoningEffort?: ReasoningEffort;
+   parameterOverrides?: { reasoningEffort?: ReasoningEffort };
+ }): string {
+-  const name = config.name?.trim() || config.model;
++  const name =
++    config.name?.trim().replace(/^Previous-lineup(?= —)/, "Previous lineup") ||
++    config.model;
+   const effort =
+     config.reasoningEffort ?? config.parameterOverrides?.reasoningEffort;
+   return effort
+diff --git a/apps/web/src/routes/session.tsx b/apps/web/src/routes/session.tsx
+index 5781c8c..e2079d0 100644
+--- a/apps/web/src/routes/session.tsx
++++ b/apps/web/src/routes/session.tsx
+@@ -20,6 +20,7 @@ import { isOnboarded } from "@/components/onboarding-wizard/persistence.js";
+ import { ExecutionRecoveryNotice } from "@/components/session/execution-recovery-notice.js";
+ import { SessionRecoveryBoundary } from "@/components/session/session-recovery-boundary.js";
+ import { SettingsDialog } from "@/settings/SettingsDialog.js";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+ import { ServerStatusOverlay } from "@/components/desktop/server-status-overlay.js";
+
+ // Lazy-load the in-game surface (chat + stage + json-render panels + plugin
+@@ -84,7 +85,9 @@ function SessionScreen() {
+     state.llmConfig,
+   );
+   const settings = useSettingsDialog(refreshSlots);
+-  const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboarded());
++  const [onboardingOpen, setOnboardingOpen] = useState(
++    () => !HARBINGER_SETTINGS && !isOnboarded(),
++  );
+   const { sid, panel } = Route.useSearch();
+   const navigate = useNavigate();
+   const replaceSessionUrl = useCallback(
+@@ -346,7 +349,9 @@ function SessionScreen() {
+         resolvedSlots={resolvedSlots}
+       />
+       <WorldSelectScreen
+-        onOpenOnboarding={() => setOnboardingOpen(true)}
++        onOpenOnboarding={
++          HARBINGER_SETTINGS ? undefined : () => setOnboardingOpen(true)
++        }
+         worlds={state.worlds}
+         plugins={state.plugins}
+         resolvedSlots={resolvedSlots}
+diff --git a/apps/web/src/services/api/model-settings.ts b/apps/web/src/services/api/model-settings.ts
+index 38abff6..647dd47 100644
+--- a/apps/web/src/services/api/model-settings.ts
++++ b/apps/web/src/services/api/model-settings.ts
+@@ -4,6 +4,7 @@ import {
+   utf8ByteLength,
+ } from "@covel/shared/plugin-user-settings-header";
+ import { getSettings, registerKnownProviders } from "@/settings/store";
++import { HARBINGER_SETTINGS } from "@/settings/harbinger.js";
+ import { modelRelayHeaders } from "@/services/model-relay.js";
+ import {
+   flattenProviderProfiles,
+@@ -313,6 +314,7 @@ export function buildSlotConfigHeaderInternal(
+ // `covel:keys` localStorage. Callers see a flat `{ provider -> key }` map.
+
+ function providerKeysSnapshot(): Record<string, string> {
++  if (HARBINGER_SETTINGS) return {};
+   const store = getSettings() as unknown as {
+     snapshotSecrets(): Record<string, string>;
+   };
+diff --git a/apps/web/src/settings/SettingsDialog.tsx b/apps/web/src/settings/SettingsDialog.tsx
+index c42e250..e4bec55 100644
+--- a/apps/web/src/settings/SettingsDialog.tsx
++++ b/apps/web/src/settings/SettingsDialog.tsx
+@@ -45,6 +45,7 @@ import {
+   type NavNode,
+ } from "./navigation.js";
+ import { SettingWidget } from "./widgets/index.js";
++import { HARBINGER_SETTINGS } from "./harbinger.js";
+ import { SettingFieldList, SettingsPaneHeader } from "./pane-layout.js";
+ import { useSetting, useSettingsStore } from "./use-settings.js";
+ import { useSettingsWritable } from "./use-settings-save.js";
+@@ -411,16 +412,18 @@ function EntryPane({
+ }) {
+   const reading = node.children.filter((entry) => READING_KEYS.has(entry.key));
+   const rest = node.children.filter((entry) => !READING_KEYS.has(entry.key));
++  const description =
++    node.id === GENERAL_NODE_ID
++      ? HARBINGER_SETTINGS
++        ? t("settings.harbinger.preferencesDescription", {
++            defaultValue:
++              "Interface language and the number of messages kept in the chat window. Saved on this device.",
++          })
++        : t("settings.paneGeneralDescription")
++      : t("settings.paneAdvancedDescription");
+   return (
+     <>
+-      <SettingsPaneHeader
+-        title={node.label}
+-        description={t(
+-          node.id === GENERAL_NODE_ID
+-            ? "settings.paneGeneralDescription"
+-            : "settings.paneAdvancedDescription",
+-        )}
+-      />
++      <SettingsPaneHeader title={node.label} description={description} />
+       <SettingFieldList>
+         {rest.map((entry) => (
+           <SettingWidget key={entry.key} entry={entry} />
+diff --git a/apps/web/src/settings/harbinger.ts b/apps/web/src/settings/harbinger.ts
+new file mode 100644
+index 0000000..cbcb63b
+--- /dev/null
++++ b/apps/web/src/settings/harbinger.ts
+@@ -0,0 +1,2 @@
++export const HARBINGER_SETTINGS =
++  import.meta.env.VITE_HARBINGER_SETTINGS === "true";
+diff --git a/apps/web/src/settings/navigation.ts b/apps/web/src/settings/navigation.ts
+index 91648d7..1595cee 100644
+--- a/apps/web/src/settings/navigation.ts
++++ b/apps/web/src/settings/navigation.ts
+@@ -2,6 +2,7 @@ import type { SettingEntry, SettingsStoreApi } from "@covel/settings";
+ import { DEFAULT_LOCALE, resolveI18nText, type I18nText } from "@covel/shared";
+ import i18n from "@/i18n";
+ import { resolveSettingEntryText } from "./framework-i18n.js";
++import { HARBINGER_SETTINGS } from "./harbinger.js";
+
+ export type NavNodeKind = "header" | "group" | "plugin" | "subgroup";
+
+@@ -14,6 +15,8 @@ export interface NavNode {
+   children: SettingEntry[];
+   /** Parent id for sub-nodes (rendered indented in the left nav). */
+   parentId?: string;
++  /** Searchable names for values displayed by a custom pane. */
++  searchTerms?: string;
+ }
+
+ const PACKAGES_NODE_ID = "packages";
+@@ -60,6 +63,14 @@ const ADVANCED_KEYS = [
+   "world.authoringIdleTimeoutSeconds",
+ ] as const;
+ const INTERNAL_KEYS = new Set(["ui.onboardedVersion"]);
++const HARBINGER_PREFERENCE_KEYS = [
++  "ui.locale",
++  "ui.chatMessageWindow",
++] as const;
++const HARBINGER_ADVANCED_KEYS = [
++  DEVELOPER_MODE_KEY,
++  "world.authoringIdleTimeoutSeconds",
++] as const;
+
+ const OPERATOR_ACCESS_NODE_ID = "operator-access";
+ const RAW_CONFIG_NODE_ID = "raw-config";
+@@ -72,7 +83,9 @@ function navigationLabels(locale: string) {
+       general: t("settings.groupGeneral", "General"),
+       llm: t("settings.groupLlm", "Models"),
+       plugin: t("settings.groupPlugins", "Plugins"),
+-      saves: t("settings.groupData", "Saves & data"),
++      saves: HARBINGER_SETTINGS
++        ? t("settings.harbinger.localData", "Local data")
++        : t("settings.groupData", "Saves & data"),
+       advanced: t("settings.groupAdvanced", "Advanced"),
+       desktop: t("settings.groupDesktop", "Desktop"),
+     },
+@@ -89,7 +102,9 @@ function navigationLabels(locale: string) {
+     ],
+     preferences: t("settings.preferencesNavLabel", "Preferences"),
+     appearance: t("settings.appearanceNavLabel", "Appearance"),
+-    data: t("settings.dataNavLabel", "Import, backup & reset"),
++    data: HARBINGER_SETTINGS
++      ? t("settings.harbinger.preferenceBackups", "Preference backups")
++      : t("settings.dataNavLabel", "Import, backup & reset"),
+     rawConfig: t("settings.rawConfigNavLabel", "Configuration file"),
+     mediaLibrary: t("settings.mediaLibraryNavLabel", "Stored media"),
+     operatorAccess: t("settings.operatorAccessNavLabel", "Operator access"),
+@@ -156,7 +171,9 @@ export function buildNavTree(
+     label: labels.preferences,
+     kind: "subgroup",
+     parentId: GENERAL_HEADER_ID,
+-    children: pick(PREFERENCE_KEYS),
++    children: pick(
++      HARBINGER_SETTINGS ? HARBINGER_PREFERENCE_KEYS : PREFERENCE_KEYS,
++    ),
+   });
+   nodes.push({
+     id: APPEARANCE_NODE_ID,
+@@ -189,7 +206,6 @@ export function buildNavTree(
+         }
+         if (sub.id === "llm.advanced")
+           return entry.key === "llm.paramOverrides";
+-        // Capability overrides are for authors and troubleshooting.
+         return (
+           entry.key === "llm.slotConfig" ||
+           (opts.developerMode === true &&
+@@ -265,20 +281,25 @@ export function buildNavTree(
+     label: labels.advancedOptions,
+     kind: "subgroup",
+     parentId: ADVANCED_HEADER_ID,
+-    children: [...pick(ADVANCED_KEYS), ...extraAdvanced],
+-  });
+-  nodes.push({
+-    id: RAW_CONFIG_NODE_ID,
+-    label: labels.rawConfig,
+-    kind: "subgroup",
+-    parentId: ADVANCED_HEADER_ID,
+-    children: [],
++    children: [
++      ...pick(HARBINGER_SETTINGS ? HARBINGER_ADVANCED_KEYS : ADVANCED_KEYS),
++      ...extraAdvanced,
++    ],
+   });
++  if (!HARBINGER_SETTINGS) {
++    nodes.push({
++      id: RAW_CONFIG_NODE_ID,
++      label: labels.rawConfig,
++      kind: "subgroup",
++      parentId: ADVANCED_HEADER_ID,
++      children: [],
++    });
++  }
+   // Pure-web hosted deployments need an explicit browser-local credential
+   // entry point before any operator-gated management request can succeed. A
+   // self-tier server ignores the header, so the caller leaves the pane out
+   // once that server has said so.
+-  if (opts.includeOperatorAccess !== false) {
++  if (!HARBINGER_SETTINGS && opts.includeOperatorAccess !== false) {
+     nodes.push({
+       id: OPERATOR_ACCESS_NODE_ID,
+       label: labels.operatorAccess,
+@@ -315,6 +336,8 @@ export function resolveSettingsNode(
+   nodes: readonly NavNode[],
+   key: string,
+ ): NavNode | undefined {
++  if (key === "harbinger.story-model")
++    return nodes.find((node) => node.id === "llm.slots");
+   const target = key.startsWith("keys.") ? "llm.providers" : key;
+   const exact = nodes.find((node) => node.id === target);
+   if (exact) {
+@@ -338,7 +361,9 @@ export function filterNav(
+   if (!q) return nodes;
+   // Keep parent nodes whose subgroups match; keep children that match.
+   const result = nodes.filter((node) => {
+-    const labelHit = `${node.id} ${node.label}`.toLowerCase().includes(q);
++    const labelHit = `${node.id} ${node.label} ${node.searchTerms ?? ""}`
++      .toLowerCase()
++      .includes(q);
+     const childHit = node.children.some((e) =>
+       (
+         e.key +
+diff --git a/apps/web/src/settings/panes/HarbingerTiers.tsx b/apps/web/src/settings/panes/HarbingerTiers.tsx
+new file mode 100644
+index 0000000..747aa33
+--- /dev/null
++++ b/apps/web/src/settings/panes/HarbingerTiers.tsx
+@@ -0,0 +1,152 @@
++import { useId, useState } from "react";
++import { Button } from "@/components/ui/button.js";
++import { ApiError, request } from "@/services/api/request.js";
++import { getParamOverrides, getProviderProfiles, getSlotConfig, type SlotConfigEntry } from "@/services/api/model-settings.js";
++import { upsertProviderModel } from "@/services/api/provider-model-profiles.js";
++import { useSession } from "@/stores/session-store.js";
++import { useSettingsRevision } from "../use-settings-revision.js";
++import { useSettingsStore } from "../use-settings.js";
++
++const tiers = {
++  story: { efficient: "deepseek-v3.2", balanced: "glm-5.3-flash", advanced: "sonnet-4.5" },
++  character: { moderate: "gemma-4-31b", high: "glm-5.3-flash", ultra: "sonnet-4.6" },
++  state: { moderate: "gemma-4-26b", high: "gemma-4-31b", ultra: "gemma-4-31b" },
++};
++const roleNames = { story: "Story", character: "Character", state: "State" };
++const roles = ["story", "character", "state"] as const;
++type Role = typeof roles[number];
++const defaultTiers = {
++  story: { tier: "balanced", model: /\/glm-5\.3-flash$/iu },
++  character: { tier: "high", model: /\/glm-5\.3-flash$/iu },
++  state: { tier: "high", model: /\/gemma-4-31b-it$/iu },
++};
++
++interface ModelRoute {
++  provider: string;
++  providerName: string;
++  name: string;
++  modelId: string;
++  baseUrl: string;
++  protocol: string;
++  estimatedCost: number | null;
++}
++
++function getRoute(model: string) {
++  return request<ModelRoute>("/api/harbinger/model-route", {
++    method: "POST", operatorAuth: true, silentErrors: true, body: JSON.stringify({ model }),
++  });
++}
++
++function label(value: string) {
++  return value.charAt(0).toUpperCase() + value.slice(1);
++}
++
++function selectedTier(role: Role, binding: SlotConfigEntry | undefined, defaultModel?: string) {
++  if (Object.keys(getParamOverrides()[role] ?? {}).length) return "custom";
++  const shipped = defaultTiers[role];
++  if (!binding && shipped.model.test(defaultModel ?? "")) return shipped.tier;
++  const ref = binding?.modelRef ?? binding?.presetId ?? "";
++  return Object.keys(tiers[role]).find(tier =>
++    ref.startsWith(`harbinger-tier-${role}-${tier}-`) || ref.startsWith(`slot-harbinger-tier-${role}-${tier}-`),
++  ) ?? "custom";
++}
++
++export function HarbingerTiers() {
++  const id = useId();
++  const store = useSettingsStore();
++  const { state } = useSession();
++  useSettingsRevision(["llm.providers", "llm.slotConfig", "llm.paramOverrides"]);
++  const [busy, setBusy] = useState(false);
++  const [errors, setErrors] = useState("");
++  const [chosen, setChosen] = useState<Partial<Record<Role, { tier: string; route: ModelRoute }>>>({});
++  const [previous, setPrevious] = useState(false);
++  const slots = getSlotConfig();
++
++  async function applyTier(role: Role, tier: string) {
++    const model = (tiers[role] as Record<string, string>)[tier];
++    if (!model || busy) return;
++    setErrors("");
++    setPrevious(false);
++    setBusy(true);
++    try {
++      const [route, complex] = await Promise.all([getRoute(model), role === "state" && tier === "ultra" ? getRoute("gemini-3-flash") : undefined]);
++      let profiles = getProviderProfiles();
++      const selection = { ...getSlotConfig() };
++      const parameters = { ...getParamOverrides() };
++      function bind(slot: string, target: ModelRoute, identifier: string) {
++        const updated = upsertProviderModel(profiles, {
++          providerId: target.provider, providerName: target.providerName, modelId: target.modelId,
++          baseUrl: target.baseUrl, modelProtocol: target.protocol, modelName: `${label(tier)} · ${target.name}`,
++        }, () => `harbinger-tier-${identifier}-${tier}-${target.provider}`);
++        profiles = updated.profiles;
++        selection[slot] = { modelRef: updated.modelRef };
++      }
++      bind(role, route, role);
++      delete parameters[role];
++      if (role === "state") {
++        delete selection["state-complex"];
++        delete parameters["state-complex"];
++        if (complex) bind("state-complex", complex, "state-complex");
++      }
++      await store.setMany({ "llm.providers": profiles, "llm.slotConfig": selection, "llm.paramOverrides": parameters });
++      setChosen(values => ({ ...values, [role]: { tier, route } }));
++    } catch (cause) {
++      setErrors(cause instanceof ApiError ? cause.response?.error ?? "Could not apply this tier." : "Could not apply this tier.");
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  async function restorePrevious() {
++    setBusy(true);
++    setErrors("");
++    try {
++      const selection = { ...getSlotConfig() };
++      const parameters = { ...getParamOverrides() };
++      for (const role of roles) {
++        selection[role] = { presetId: "slot-previous-lineup" };
++        delete parameters[role];
++      }
++      delete selection["state-complex"];
++      delete parameters["state-complex"];
++      await store.setMany({ "llm.slotConfig": selection, "llm.paramOverrides": parameters });
++      setPrevious(true);
++    } catch {
++      setErrors("Could not restore Previous lineup.");
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  return (
++    <section aria-label="Voyage model tiers" className="space-y-3">
++      {roles.filter(role => state.llmConfig?.slots?.[role]).map(role => {
++        const serverDefault = state.llmConfig?.slots?.[role];
++        const active = selectedTier(role, slots[role], serverDefault?.model);
++        const result = chosen[role];
++        const selection = result?.tier === active ? result.route : undefined;
++        return (
++          <div className="space-y-1" key={role}>
++            <label className="block text-sm font-medium" htmlFor={`${id}-${role}`}>{roleNames[role]} tier</label>
++            <select id={`${id}-${role}`} value={active} disabled={busy}
++              className="w-full rounded-(--radius-control) border border-(--rule-color) bg-background px-3 py-2 text-sm"
++              onChange={event => void applyTier(role, event.target.value)}>
++              <option value="custom" disabled>Custom</option>
++              {Object.keys(tiers[role]).map(tier => <option value={tier} key={tier}>{label(tier)}</option>)}
++            </select>
++            {selection && <p role="status" className="text-sm">{roleNames[role]} uses {selection.providerName} for {selection.name}.
++              {selection.estimatedCost !== null && ` Estimated $${selection.estimatedCost.toFixed(5)} per request.`}</p>}
++            {!selection && !slots[role] && active !== "custom" && serverDefault && (
++              <p className="text-sm text-muted-foreground">{serverDefault.provider} · {serverDefault.model}</p>
++            )}
++          </div>
++        );
++      })}
++      {state.presets?.some(preset => preset.id === "slot-previous-lineup") && (
++        <Button type="button" variant="outline" disabled={busy} onClick={() => void restorePrevious()}>Use Previous lineup</Button>
++      )}
++      {previous && <p role="status" className="text-sm">Previous lineup applied to Story, Character, and State.</p>}
++      {errors && <p role="alert" className="text-sm text-destructive">{errors}</p>}
++    </section>
++  );
++}
+diff --git a/apps/web/src/settings/panes/LlmKeysPane.tsx b/apps/web/src/settings/panes/LlmKeysPane.tsx
+index cc7eaaa..10e0739 100644
+--- a/apps/web/src/settings/panes/LlmKeysPane.tsx
++++ b/apps/web/src/settings/panes/LlmKeysPane.tsx
+@@ -1,6 +1,7 @@
+ import { isLoopbackBaseUrl } from "@covel/shared";
+ import { useEffect, useState } from "react";
+ import { useTranslation } from "react-i18next";
++import { HARBINGER_SETTINGS } from "../harbinger.js";
+ import { FolderOpen, Info } from "lucide-react";
+ import {
+   getCustomPresets,
+@@ -195,7 +196,7 @@ export function LlmKeysPane({
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2 text-xs">
+                 <strong>{providerId}</strong>
+-                {hasKey ? (
++                {(!HARBINGER_SETTINGS && hasKey) || serverKeyConfigured ? (
+                   <Badge variant="default" className="text-[10px]">
+                     {t("settings.keyConfigured")}
+                   </Badge>
+@@ -209,12 +210,14 @@ export function LlmKeysPane({
+                 {providerId.toUpperCase().replace(/-/g, "_")}_API_KEY
+               </span>
+             </div>
+-            <SettingWidget entry={entry} />
+-            {hasKey && envOverrides.includes(providerId) && (
+-              <p className="text-[10px] text-(--accent-warning)">
+-                {t("settings.keyOverriddenByEnv")}
+-              </p>
+-            )}
++            {!HARBINGER_SETTINGS && <SettingWidget entry={entry} />}
++            {!HARBINGER_SETTINGS &&
++              hasKey &&
++              envOverrides.includes(providerId) && (
++                <p className="text-[10px] text-(--accent-warning)">
++                  {t("settings.keyOverriddenByEnv")}
++                </p>
++              )}
+             {serverKeyConfigured && (
+               <p className="text-[10px] text-muted-foreground">
+                 {t("settings.serverKeyAvailable")}
+diff --git a/apps/web/src/settings/panes/LlmSlotsPane.tsx b/apps/web/src/settings/panes/LlmSlotsPane.tsx
+index 87d2d80..3cfe008 100644
+--- a/apps/web/src/settings/panes/LlmSlotsPane.tsx
++++ b/apps/web/src/settings/panes/LlmSlotsPane.tsx
+@@ -26,6 +26,7 @@ import { useSettingsSave } from "../use-settings-save.js";
+ import { emitToast } from "@/lib/toast-channel.js";
+ import { useSession } from "@/stores/session-store.js";
+ import { LlmSlotCard } from "./llm-slot-card.js";
++import { HarbingerTiers } from "./HarbingerTiers.js";
+ import {
+   autoBindDiscoveredSlots as resolveAutoBindDiscoveredSlots,
+   collectLlmSlotPresetCandidates,
+@@ -36,6 +37,7 @@ import { clearChangedSlotReasoningEfforts } from "./llm-reasoning-effort.js";
+ import { useSettingsRevision } from "../use-settings-revision.js";
+ import { useSettingsStore } from "../use-settings.js";
+ import { SettingsPaneHeader } from "../pane-layout.js";
++import { HARBINGER_SETTINGS } from "../harbinger.js";
+
+ const FILTER_FROM_SLOT_COUNT = 6;
+
+@@ -256,9 +258,11 @@ export function LlmSlotsPane() {
+   };
+
+   const needle = filter.trim().toLowerCase();
+-  const visibleSlots = needle
+-    ? slots.filter((slotId) => slotId.toLowerCase().includes(needle))
+-    : slots;
++  const visibleSlots = slots.filter(
++    (slotId) =>
++      (!HARBINGER_SETTINGS || ["story", "character", "state", "image", "speech"].includes(slotId) && configuredSlots.includes(slotId)) &&
++      (!needle || slotId.toLowerCase().includes(needle)),
++  );
+
+   return (
+     <div className="space-y-3">
+@@ -271,6 +275,7 @@ export function LlmSlotsPane() {
+           "Plugin tasks → AI roles → providers and models → API keys.",
+         )}
+       />
++      {HARBINGER_SETTINGS && <HarbingerTiers />}
+       {/* Manual hot-reload: re-read llm.toml on the server and apply it to the
+           live gateway without restarting. */}
+       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-(--radius-control) border border-(--rule-color) px-3 py-2">
