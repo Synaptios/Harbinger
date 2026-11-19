@@ -1,0 +1,7 @@
+id: bread-ledger
+name: The Bread Ledger
+version: 1.0.0
+defaultLocale: en-US
+summary: A London clerk must choose whose names go into the ledger before dusk.
+plugins:
+  - plugin:harbinger

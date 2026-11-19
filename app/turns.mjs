@@ -1,8 +1,10 @@
 import { playFixedTurn, playerView } from './episode.mjs';
-import { advanceAgenda } from './director.mjs';
+import { advanceAgenda, offerMeeting, timeOfDay } from './director.mjs';
 import { actorContext, matchConversation, playConversation } from './knowledge.mjs';
-import { recordThoughts } from './thoughts.mjs';
+import { recordThoughts, sceneActorIds } from './thoughts.mjs';
 import { playGeneratedTurn } from './generated.mjs';
+
+export const clarificationPrefix = 'Harbinger clarification: ';
 
 function fixedIntents(text, choices) {
   const exact = choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
@@ -25,30 +27,42 @@ function fixedIntents(text, choices) {
 function appendMoment(state, scene, heading, paragraphs, playerText) {
   state.passages.push({
     id: 'passage-' + state.passages.length,
-    location: scene.location, time: scene.time, heading, paragraphs, playerText,
+    location: scene.location, time: timeOfDay(state.minute), heading, paragraphs, playerText,
   });
 }
 
-async function resolveTurn(save, text, model) {
+export async function resolveTurn(save, text, model, { pauseAtDirectorInterruption = false } = {}) {
   const snapshot = playerView(save);
   if (snapshot.ended) return { clarification: 'This story has reached an ending.' };
   const exact = snapshot.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase()) ?? matchConversation(save.state, text);
-  const intents = exact ? [{ type: 'choice', choice: exact }] : model
-    ? await model.complete({ operation: 'interpret', context: { ...actorContext(save.state, 'player'), text, scene: snapshot.scene, choices: snapshot.choices } })
-    : fixedIntents(text, snapshot.choices);
+  const audience = model?.respond ? sceneActorIds(save.state).flatMap(id => {
+    const actor = actorContext(save.state, id).actor;
+    return actor ? [{ id, name: actor.name }] : [];
+  }) : undefined;
+  const knownIntents = fixedIntents(text, snapshot.choices);
+  const useKnownIntents = !model || (model.respond && knownIntents.every(intent => intent.type !== 'unclear' && intent.type !== 'speak'));
+  const intents = exact ? [{ type: 'choice', choice: exact }] : !useKnownIntents
+    ? await model.complete({ operation: 'interpret', context: { ...actorContext(save.state, 'player'), text, scene: snapshot.scene, choices: snapshot.choices, audience } })
+    : knownIntents;
   if (!Array.isArray(intents) || !intents.length || intents.length > 8) {
     return { clarification: 'What would you like to try first?' };
   }
   let state = structuredClone(save.state);
+  const speechDrafts = [];
   delete state.turn;
-  for (const intent of intents) {
+  for (const [index, intent] of intents.entries()) {
     if (intent?.type === 'choice' && typeof intent.choice === 'string') {
       const scene = playerView({ ...save, state }).scene;
       if (await playConversation(state, intent.choice, scene, model)) continue;
       if (await playGeneratedTurn(state, intent.choice, model)) continue;
+      const previousDirections = state.directorTrace?.length ?? 0;
       const result = playFixedTurn(state, intent.choice);
       if (result.clarification) return result;
       state = result.state;
+      if (pauseAtDirectorInterruption && index < intents.length - 1 && state.directorTrace?.length > previousDirections) {
+        state.turn = { kind: 'interrupted' };
+        break;
+      }
     } else if (intent?.type === 'observe') {
       const scene = playerView({ ...save, state }).scene;
       advanceAgenda(state, state.minute + 2);
@@ -56,13 +70,28 @@ async function resolveTurn(save, text, model) {
       appendMoment(state, scene, 'A moment to look', ['You take a moment to look around.'], 'Look around');
     } else if (intent?.type === 'speak' && typeof intent.words === 'string' && intent.words.trim() && text.includes(intent.words)) {
       const scene = playerView({ ...save, state }).scene;
+      const reply = await model?.respond?.(state, intent);
+      if (reply?.clarification) return reply;
       advanceAgenda(state, state.minute + 1);
       state.records.push({ type: 'protagonist-speech', minute: state.minute, words: intent.words });
-      appendMoment(state, scene, 'Words spoken', ['You speak into the room.'], '“' + intent.words + '”');
+      if (reply) {
+        appendMoment(state, scene, 'A word with ' + reply.name, [], '“' + intent.words + '”');
+        const passage = state.passages.at(-1);
+        state.records.push({ type: 'testimony', actorId: reply.actorId, topic: 'conversation', minute: state.minute, passageId: passage.id });
+        const accepted = offerMeeting(state, reply.actorId, reply.commitment, passage);
+        if (reply.commitment && !accepted) {
+          passage.paragraphs.unshift(`${reply.name} declines to arrange the proposed meeting and stays where the clerk can speak with them.`);
+        } else {
+          passage.paragraphs.unshift(`${reply.name} hears the clerk and answers.`);
+          speechDrafts.push({ actorId: reply.actorId, words: reply.reply });
+        }
+      } else {
+        appendMoment(state, scene, 'Words spoken', ['You speak into the room.'], '“' + intent.words + '”');
+      }
     } else if (intent?.type === 'take-ledger' && state.scene === 'bakehouse') {
       advanceAgenda(state, state.minute + 3);
       state.records.push({ type: 'ledger-interruption', minute: state.minute });
-      appendMoment(state, snapshot.scene, 'Alice intervenes', [
+      appendMoment(state, playerView({ ...save, state }).scene, 'Alice intervenes', [
         'Alice’s hand comes down on the ledger. “Ask me first,” she says. She leaves her hand there.',
       ], 'Reach for the ledger');
       state.turn = { kind: 'interrupted' };
@@ -71,7 +100,7 @@ async function resolveTurn(save, text, model) {
       return { clarification: 'What would you like to try here? You can use one of the suggested actions as a starting point.' };
     }
   }
-  return { state };
+  return { state, speechDrafts };
 }
 
 export async function processTurn(store, id, input, model) {

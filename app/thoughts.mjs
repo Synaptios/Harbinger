@@ -21,6 +21,15 @@ const names = {
   'guild-runner': 'Guild runner', 'market-carter': 'Market carter', 'market-baker': 'Market baker',
 };
 
+export function sceneActorIds(state) {
+  if (state.scene === 'guild-storehouse' && state.generatedStorehouse) {
+    const { id, porterId } = state.generatedStorehouse;
+    const porter = state.actors?.[porterId];
+    return porter && porter.locationId === id ? [porterId] : [];
+  }
+  return sceneActors[state.scene] ?? [];
+}
+
 function participants(before, state) {
   const people = new Map();
   const mark = (actorId, presence, minute, source, topic) => {
@@ -42,13 +51,12 @@ function participants(before, state) {
       mark('alice', 'onstage', event.minute, 'Alice stops the clerk at the ledger', 'ledger');
     } else if (event.type === 'ledger-presented') {
       for (const actorId of event.witnesses) mark(actorId, 'onstage', event.minute, 'The clerk gives Martin the ledger names', 'ledger-presented');
+    } else if (event.type === 'flour-dispatched') {
+      mark('river-carter', 'onstage', event.minute, 'Loading the flour at the landing', 'loading');
     } else if (event.type === 'inspection' && event.outcome === 'oven-sealed') {
       mark('martin', 'offstage', event.minute, 'Guild inspection at dusk', 'inspection');
       for (const affected of event.sources ?? []) {
         if (!people.has(affected.actorId)) mark(affected.actorId, 'offstage', event.minute, affected.detail, 'inspection');
-      }
-      if (newPassages.some(passage => passage.sceneId === 'shutter')) {
-        mark('river-carter', 'onstage', event.minute, 'Loading the flour at the landing', 'loading');
       }
     }
   }
@@ -118,7 +126,7 @@ function draftThoughts(before, state, revision) {
   return participants(before, state).map(role => {
     const view = actorContext({ ...state, minute: role.minute }, role.actorId);
     const { lines, sources } = optionsFor(role, view);
-    return { view, lines, entry: {
+    return { view, lines, role, entry: {
       turn: revision, minute: role.minute, actorId: role.actorId,
       name: view.actor?.name ?? names[role.actorId] ?? role.actorId,
       presence: role.presence, text: lines[0], sources,
@@ -132,12 +140,12 @@ export function seedThoughts(state) {
 }
 
 export async function recordThoughts(before, state, model, revision) {
-  const entries = await Promise.all(draftThoughts(before, state, revision).map(async ({ view, lines, entry }) => ({
-    ...entry, text: await chooseThought(model, view, lines),
+  const entries = await Promise.all(draftThoughts(before, state, revision).map(async ({ view, lines, role, entry }) => ({
+    ...entry, text: model?.think ? (await model.think(view, role)) ?? lines[0] : await chooseThought(model, view, lines),
   })));
   state.thoughts ??= [];
   state.thoughts.push(...entries);
-  for (const direction of (state.directorTrace ?? []).slice(before.directorTrace?.length ?? 0)) {
+  for (const direction of (state.directorTrace ?? []).slice(before?.directorTrace?.length ?? 0)) {
     direction.turn = revision;
   }
 }

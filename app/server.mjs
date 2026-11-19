@@ -7,7 +7,8 @@ import { openStore } from './store.mjs';
 import { processTurn } from './turns.mjs';
 import { seedThoughts, testingView } from './thoughts.mjs';
 import { createModel, providerFromEnvironment } from './model.mjs';
-import { createSaveHandler, createSaveQueue } from './saves.mjs';
+import { createSaveHandler, createSaveQueue, download, maxImportBytes, shareableStory } from './saves.mjs';
+import { createCovelBridge } from '../covel/bridge.mjs';
 
 const assets = {
   '/': ['index.html', 'text/html; charset=utf-8'],
@@ -44,8 +45,10 @@ async function readJson(request, maxBytes = 1024 * 1024) {
   }
 }
 
-export function createHarbinger({ databasePath = resolve('.harbinger/bread-ledger.sqlite'), provider, model = provider && createModel(provider) } = {}) {
-  const store = openStore(databasePath);
+export function createHarbinger({ databasePath, provider, model, engine = 'legacy' } = {}) {
+  const covel = engine === 'covel' ? createCovelBridge({ databasePath: databasePath ?? '.harbinger/covel-story.sqlite', provider }) : null;
+  const store = covel ? null : openStore(databasePath ?? resolve('.harbinger/bread-ledger.sqlite'));
+  if (!covel && !model && provider) model = createModel(provider);
   const saveQueue = createSaveQueue();
   const handleSaveRequest = createSaveHandler({ store, saveQueue, reply, readJson });
   const server = createServer(async (request, response) => {
@@ -57,6 +60,50 @@ export function createHarbinger({ databasePath = resolve('.harbinger/bread-ledge
         const data = await readFile(new URL('../public/' + path, import.meta.url));
         response.writeHead(200, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
         return response.end(data);
+      }
+      if (covel) {
+        if (method === 'GET' && pathname === '/api/saves') return reply(response, 200, await covel.list());
+        if (method === 'POST' && pathname === '/api/saves/import') {
+          const bundle = await readJson(request, maxImportBytes);
+          return reply(response, 201, await covel.restore(bundle));
+        }
+        if (method === 'POST' && pathname === '/api/saves') {
+          await readJson(request);
+          return reply(response, 201, await covel.start());
+        }
+        const match = pathname.match(/^\/api\/saves\/([a-f0-9-]+)(?:\/(turns|receipt|testing|duplicate|export|story|notes))?$/);
+        if (match && method === 'GET' && !match[2]) return reply(response, 200, await covel.read(match[1]));
+        if (match?.[2] === 'testing' && method === 'GET') return reply(response, 200, await covel.testing(match[1]));
+        if (match?.[2] === 'receipt' && method === 'GET') {
+          const committed = await covel.receipt(match[1], searchParams.get('requestId'));
+          return reply(response, 200, { committed });
+        }
+        if (match?.[2] === 'turns' && method === 'POST') {
+          const input = await readJson(request);
+          const result = await saveQueue.run(match[1], () => covel.turn(match[1], input));
+          return reply(response, 200, result);
+        }
+        if (match?.[2] === 'duplicate' && method === 'POST') {
+          await readJson(request);
+          const copy = await saveQueue.run('covel-library', () => saveQueue.run(match[1], () => covel.duplicate(match[1])));
+          return reply(response, 201, copy);
+        }
+        if (match?.[2] === 'export' && method === 'GET') {
+          const bundle = await covel.capture(match[1]);
+          return download(response, 'harbinger-covel-save.json', 'application/json; charset=utf-8', JSON.stringify(bundle));
+        }
+        if (match?.[2] === 'story' && method === 'GET') {
+          return download(response, 'harbinger-story.txt', 'text/plain; charset=utf-8', shareableStory(await covel.read(match[1])));
+        }
+        if (match?.[2] === 'notes' && method === 'GET') return reply(response, 200, await covel.notes(match[1]));
+        if (match?.[2] === 'notes' && method === 'PUT') {
+          const { note } = await readJson(request) ?? {};
+          if (typeof note !== 'string' || note.length > 4000) {
+            return reply(response, 400, { message: 'Enter up to 4,000 characters of notes.' });
+          }
+          return reply(response, 200, await covel.notes(match[1], { note }));
+        }
+        return reply(response, 404, { message: 'This action is not available in the Covel opening yet.' });
       }
       const noteId = pathname.match(/^\/api\/saves\/([a-f0-9-]+)\/notes$/)?.[1];
       if (noteId) {
@@ -100,12 +147,25 @@ export function createHarbinger({ databasePath = resolve('.harbinger/bread-ledge
       return reply(response, error.status ?? 500, { message: error.status ? error.message : 'The story could not be saved. Try again.' });
     }
   });
-  server.once('close', () => store.close());
+  server.once('close', () => {
+    if (store) store.close();
+    if (covel) server.covelClosed = covel.close();
+  });
   return server;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
-  const port = Number(process.env.HARBINGER_PORT ?? 4173);
-  const server = createHarbinger({ databasePath: process.env.HARBINGER_DATABASE_PATH, provider: providerFromEnvironment() });
+  const engine = process.argv.includes('--covel') ? 'covel' : process.env.HARBINGER_ENGINE;
+  const port = Number(process.env.HARBINGER_PORT ?? (engine === 'covel' ? 4174 : 4173));
+  const server = createHarbinger({
+    databasePath: engine === 'covel' ? process.env.HARBINGER_COVEL_DATABASE_PATH : process.env.HARBINGER_DATABASE_PATH,
+    provider: providerFromEnvironment(),
+    engine,
+  });
   server.listen(port, '127.0.0.1', () => console.log(`Harbinger · http://127.0.0.1:${server.address().port}`));
+  if (engine === 'covel') {
+    const stop = () => server.close();
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  }
 }

@@ -196,6 +196,7 @@ composer.addEventListener('submit', event => {
 
 begin.addEventListener('click', async () => {
   begin.disabled = true;
+  status.textContent = 'Opening the story…';
   try {
     await startStory();
   } catch (error) {

@@ -2,9 +2,9 @@ import { playerView, worldVersion } from './episode.mjs';
 
 const saveFormat = 'harbinger-complete-save';
 const saveFormatVersion = 1;
-const maxImportBytes = 16 * 1024 * 1024;
+export const maxImportBytes = 16 * 1024 * 1024;
 
-function download(response, name, mediaType, content) {
+export function download(response, name, mediaType, content) {
   response.writeHead(200, {
     'Content-Type': mediaType,
     'Content-Disposition': 'attachment; filename="' + name + '"',
@@ -42,14 +42,14 @@ function validInspectorMetadata(state) {
       (direction.turn === undefined || nonnegativeInteger(direction.turn))));
 }
 
-function safeKeys(value, depth = 0) {
+export function safeKeys(value, depth = 0) {
   if (depth > 32) return false;
   if (value === null || typeof value !== 'object') return true;
   return Object.entries(value).every(([key, child]) =>
     !['__proto__', 'prototype', 'constructor'].includes(key) && safeKeys(child, depth + 1));
 }
 
-function validState(state, revision) {
+export function validState(state, revision) {
   if (!stringFields(state, ['worldVersion', 'scene']) || state.worldVersion !== worldVersion ||
       !Number.isSafeInteger(state.minute) || state.minute < 0 ||
       !rows(state.passages, passage => stringFields(passage, ['id', 'heading', 'location', 'time']) &&
@@ -95,16 +95,19 @@ export function createSaveQueue() {
   };
 }
 
+export function nextCopyName(name, names) {
+  const baseName = name.replace(/ \(copy(?: \d+)?\)$/u, '').slice(0, 140);
+  let copy = baseName + ' (copy)';
+  for (let number = 2; names.has(copy); number++) copy = baseName + ' (copy ' + number + ')';
+  return copy;
+}
+
 function makeCopy(store, save) {
-  const names = new Set(store.list().map(entry => entry.name));
-  const baseName = save.name.replace(/ \(copy(?: \d+)?\)$/u, '').slice(0, 140);
-  let name = baseName + ' (copy)';
-  for (let number = 2; names.has(name); number++) name = baseName + ' (copy ' + number + ')';
+  const name = nextCopyName(save.name, new Set(store.list().map(entry => entry.name)));
   return store.create(name, save.state, save.revision, store.getNote?.(save.id));
 }
 
-function shareableStory(save) {
-  const { title, passages } = playerView(save);
+export function shareableStory({ title, passages }) {
   const sections = passages.map(({ heading, location, time, playerText, paragraphs }) =>
     [heading, location + ' / ' + time, playerText, ...paragraphs].filter(Boolean).join('\n\n'));
   return [title, ...sections].join('\n\n') + '\n';
@@ -132,7 +135,7 @@ export function createSaveHandler({ store, saveQueue, reply, readJson }) {
       const save = store.get(id);
       if (!save) return reply(response, 404, { message: 'Save not found.' });
       if (action === 'duplicate') return reply(response, 201, playerView(makeCopy(store, save)));
-      if (action === 'story') return download(response, 'harbinger-story.txt', 'text/plain; charset=utf-8', shareableStory(save));
+      if (action === 'story') return download(response, 'harbinger-story.txt', 'text/plain; charset=utf-8', shareableStory(playerView(save)));
       const bundle = {
         format: saveFormat, version: saveFormatVersion, name: save.name, revision: save.revision,
         state: save.state, note: store.getNote?.(save.id) ?? '',

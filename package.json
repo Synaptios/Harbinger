@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "start": "node --env-file-if-exists=.env app/server.mjs", "test": "playwright test" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env app/server.mjs",
+    "start:covel": "node --env-file-if-exists=.env app/server.mjs --covel",
+    "covel:setup": "node covel/setup.mjs",
+    "test": "playwright test"
+  },
   "devDependencies": { "@playwright/test": "1.65.1" }
 }

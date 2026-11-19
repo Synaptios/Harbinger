@@ -1,4 +1,4 @@
-import { advanceAgenda, selectInspectionConsequence } from './director.mjs';
+import { advanceAgenda, honorMeeting, offeredMeetings, selectInspectionConsequence, timeOfDay } from './director.mjs';
 import { conversationChoices, initialKnowledge, visibleObservations } from './knowledge.mjs';
 import { generatedChoices, generatedScene } from './generated.mjs';
 
@@ -157,7 +157,7 @@ function visit(state, scene, playerText, arrival) {
   const paragraphs = arrival ? [arrival, ...view.paragraphs.slice(1)] : view.paragraphs;
   const passageId = 'passage-' + state.passages.length;
   state.scene = scene;
-  state.passages.push({ id: passageId, ...view, paragraphs, playerText, sceneId: scene, minute: state.minute });
+  state.passages.push({ id: passageId, ...view, paragraphs, playerText, sceneId: scene, minute: state.minute, time: timeOfDay(state.minute) });
   for (const { confirms, ...observation } of [view.observation, ...(view.additionalObservations ?? [])]) {
     const prior = confirms && state.observations.findLast(item => item.topic === confirms && item.status === 'reported');
     state.observations.push({
@@ -197,12 +197,14 @@ export function playFixedTurn(state, text) {
   if (!current && generatedScene(state)) {
     return { clarification: 'This storehouse only opens onto the path to the Thames landing.' };
   }
-  const choice = current.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
+  const normalized = text.trim().toLowerCase();
+  const meeting = offeredMeetings(state).find(item => item.label.toLowerCase() === normalized);
+  const choice = current.choices.find(choice => choice.toLowerCase() === normalized) ?? meeting?.label;
   if (!choice) {
     return { clarification: current.choices.length ? 'Choose the available action to continue this route.' : 'This story has reached an ending.' };
   }
   const result = structuredClone(state);
-  const move = route[choice];
+  const move = meeting ? { next: meeting.scene, minute: meeting.minute } : route[choice];
   if (choice === 'Give Martin the names') {
     if (!result.pending.some(event => event.type === 'inspection')) {
       return { clarification: 'The dusk inspection has already ended.' };
@@ -228,18 +230,20 @@ export function playFixedTurn(state, text) {
     arrival = 'The sacks still wait at the landing. The names are still in the book. Behind the shutter, the oven is going cold.';
   }
   visit(result, consequence ?? move.next, text, arrival);
+  honorMeeting(result);
   return { state: result };
 }
 
 export function playerView(save) {
   const { state } = save;
-  const { heading, location, time, choices } = scenes[state.scene] ?? generatedScene(state);
+  const { heading, location, choices } = scenes[state.scene] ?? generatedScene(state);
   const authoredChoices = choices.filter(choice => choice !== 'Give Martin the names' || state.pending.some(event => event.type === 'inspection'));
-  const offeredChoices = [...authoredChoices, ...conversationChoices(state), ...generatedChoices(state)];
+  const appointments = authoredChoices.length ? offeredMeetings(state).map(item => item.label) : [];
+  const offeredChoices = [...authoredChoices, ...conversationChoices(state), ...generatedChoices(state), ...appointments];
   return {
     id: save.id, name: save.name, revision: save.revision,
     title, worldVersion: state.worldVersion,
-    scene: { id: state.scene, heading, location, time, minute: state.minute },
+    scene: { id: state.scene, heading, location, time: timeOfDay(state.minute), minute: state.minute },
     turn: state.turn ?? null,
     passages: state.passages.map(({ id, heading, location, time, playerText, paragraphs }) =>
       ({ id, heading, location, time, playerText, paragraphs })),

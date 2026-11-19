@@ -159,7 +159,7 @@ function dialogueFor(state, action) {
     case dialogueActions.promise:
       return { actorId: 'alice', heading: 'Between the two of you', topic: 'confidence', kind: 'promise', outcome: 'promised', options: ['Alice rests both hands on the flour board. “Between the two of us, then. Let him get out into the lane first.”'] };
     case dialogueActions.aliceQueen:
-      return { actorId: 'alice', heading: 'The reason for the flour', topic: 'guenever-refuge', outcome: 'trusted', options: ['Alice waits until Martin goes out. “The carter saw Guenever at the Tower. She took refuge in the Tower. The wedding errands were the excuse.”'] };
+      return { actorId: 'alice', heading: 'The reason for the flour', topic: 'guenever-refuge', outcome: 'trusted', report: 'guenever-refuge', options: ['Alice waits until Martin goes out. “The carter saw Guenever at the Tower. She took refuge in the Tower. The wedding errands were the excuse.”'] };
     case dialogueActions.keep:
       return { actorId: 'alice', heading: 'A name left out', topic: 'confidence', kind: 'promise', outcome: 'kept', options: ['When Martin comes back to ask after the shipment, you keep the route to yourself. Alice moves the bread past him and leaves a heel on your plate.'] };
     case dialogueActions.tell:
@@ -174,7 +174,7 @@ function dialogueFor(state, action) {
 export async function playConversation(state, choice, scene, model) {
   const action = matchConversation(state, choice);
   if (!action) return false;
-  const { actorId, heading, topic, options, kind = 'claim', outcome, source, access } = dialogueFor(state, action);
+  const { actorId, heading, topic, options, kind = 'claim', outcome, source, access, report } = dialogueFor(state, action);
   const context = actorContext(state, actorId);
   const line = await chooseLine(model, context, topic, options);
   advanceAgenda(state, state.minute + 1);
@@ -187,6 +187,7 @@ export async function playConversation(state, choice, scene, model) {
     status: kind === 'claim' ? 'reported' : 'firsthand', topic, recipients: ['player'], minute: state.minute,
   });
   state.records.push({ type: 'testimony', actorId, topic, minute: state.minute, passageId });
+  if (report) state.records.push({ type: 'fact-report', factId: report, recipients: ['player'], minute: state.minute, passageId });
   if (access) state.records.push({ type: 'fact-access', ...access, source, minute: state.minute, passageId });
   if (outcome) {
     const outcomeRecord = { type: 'alice-confidence', outcome, minute: state.minute, passageId };

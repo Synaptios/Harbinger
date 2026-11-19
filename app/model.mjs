@@ -1,6 +1,5 @@
-const instructions = {
-  interpret: 'Interpret only the protagonist’s requested actions in order. Return an object with an intents array. Allowed intents: {"type":"choice","choice":"exact visible choice"}, {"type":"observe"}, {"type":"take-ledger"}, {"type":"speak","words":"the player’s words"}, or {"type":"unclear"}. Never determine the outcome, change world state, or supply invented dialogue for the protagonist.',
-};
+export const interpretInstruction = 'Interpret only the protagonist’s requested actions in order. Return an object with an intents array. Allowed intents: {"type":"choice","choice":"exact visible choice"}, {"type":"observe"}, {"type":"take-ledger"}, {"type":"speak","words":"verbatim words from the supplied input","actorId":"explicitly addressed speaker from audience, if any"}, or {"type":"unclear"}. Never determine the outcome, change world state, or supply invented dialogue for the protagonist.';
+const instructions = { interpret: interpretInstruction };
 
 export function createModel({ url, name, key, reasoningEffort, timeoutMs = 15000 }) {
   if (!url || !name) throw new Error('Set both HARBINGER_MODEL_URL and HARBINGER_MODEL_NAME.');
