@@ -2,7 +2,7 @@ import { playerView, startEpisode, title } from '../../../../../app/episode.mjs'
 import { directScene } from '../../../../../app/director.mjs';
 import { providerFromEnvironment } from '../../../../../app/model.mjs';
 import { recordThoughts } from '../../../../../app/thoughts.mjs';
-import { clarificationPrefix, resolveTurn } from '../../../../../app/turns.mjs';
+import { resolveTurn } from '../../../../../app/turns.mjs';
 import { createCovelActors, narrationEvidence } from '../../../../actors.mjs';
 import { generatePassage } from '../../../../narrator.mjs';
 
@@ -33,17 +33,23 @@ export default async function story(ctx) {
     }
     return narration(chunks.slice(-60));
   }
-  const provider = { ...providerFromEnvironment(), signal: ctx.signal };
+  // Leave Covel time to commit the authored turn if any model stage stalls.
+  const modelDeadline = AbortSignal.timeout(90_000);
+  const provider = { ...providerFromEnvironment(), signal: AbortSignal.any([ctx.signal, modelDeadline]) };
   const actors = createCovelActors(provider);
   let state;
   let speechDrafts = [];
+  let authoredOnly = false;
   if (opening) {
     state = startEpisode();
   } else {
-    const result = await resolveTurn(previous, playerText, actors, { pauseAtDirectorInterruption: true });
-    if (result.clarification) return { outcome: 'failed', error: clarificationPrefix + result.clarification };
+    const result = await resolveTurn(previous, playerText, actors, {
+      pauseAtDirectorInterruption: true,
+      continueOnUnclear: true,
+    });
     state = result.state;
     speechDrafts = result.speechDrafts;
+    authoredOnly = result.authoredOnly;
   }
 
   const save = { id: ctx.sessionId, name: previous?.name ?? title, revision: (previous?.revision ?? -1) + 1, state };
@@ -51,18 +57,21 @@ export default async function story(ctx) {
   const { passages: draft, ...view } = playerView(save);
   const newPassages = draft.slice(previous?.state.passages.length ?? 0);
   const finalPassage = newPassages.at(-1);
-  const evidence = narrationEvidence(state, save.revision, speechDrafts);
-  const paragraphs = await generatePassage(provider, {
-    opening,
-    passage: {
-      ...finalPassage,
-      paragraphs: newPassages.flatMap(passage => passage.paragraphs),
-      playerText: opening ? null : playerText,
-    },
-    history,
-    ...evidence,
-    sceneBrief: directScene(view, newPassages, evidence.speakerEvidence),
-  });
+  const passage = {
+    ...finalPassage,
+    paragraphs: newPassages.flatMap(passage => passage.paragraphs),
+    playerText: opening ? null : playerText,
+  };
+  let paragraphs = passage.paragraphs;
+  if (!authoredOnly && !provider.signal.aborted) {
+    const evidence = narrationEvidence(state, save.revision, speechDrafts);
+    paragraphs = await generatePassage(provider, {
+      opening, passage, history, ...evidence,
+      sceneBrief: directScene(view, newPassages, evidence.speakerEvidence),
+    });
+  }
+
+  ctx.signal.throwIfAborted();
 
   const sequence = save.revision;
   const rendered = { ...finalPassage, playerText: opening ? null : playerText, paragraphs, sequence };

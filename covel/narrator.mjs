@@ -85,6 +85,7 @@ function passageDetails(passage) {
 }
 
 export async function requestStoryObject(provider, { name, instructions, context, schema }) {
+  provider.signal?.throwIfAborted();
   const endpoint = new URL(provider.url);
   if (!['http:', 'https:'].includes(endpoint.protocol)) throw new TypeError('Invalid model endpoint');
   const headers = { 'Content-Type': 'application/json' };
@@ -122,13 +123,16 @@ export async function requestStoryObject(provider, { name, instructions, context
   return JSON.parse(output);
 }
 
-function passageLimits(paragraphs) {
+function wordTarget(paragraphs) {
   const words = paragraphs.join(' ').trim().split(/\s+/u).filter(word => /[\p{L}\p{N}]/u.test(word)).length;
   if (words < 400 || words > 700) return `The passage contains ${words} words. Keep 400–700 words.`;
-  if (paragraphs.length > 60 || paragraphs.some(paragraph => paragraph.length > 4000)) {
-    return 'Use at most 60 paragraphs of at most 4,000 characters each.';
-  }
   return null;
+}
+
+function fitsCovel(paragraphs, passage) {
+  return paragraphs.length > 0 && paragraphs.length <= 60
+    && paragraphs.every(paragraph => paragraph.length <= 4000)
+    && Buffer.byteLength(JSON.stringify({ ...passage, paragraphs, sequence: Number.MAX_SAFE_INTEGER })) <= 256 * 1024;
 }
 
 async function audit(provider, context, protectedFacts, candidate) {
@@ -174,11 +178,12 @@ export async function generatePassage(provider, { opening, passage, history, sce
     const { prose } = await requestStoryObject(provider, {
       name: 'harbinger_passage', instructions: instruction, context, schema: passageSchema,
     });
-    const paragraphs = prose.trim().split(/\n\s*\n/u).map(paragraph => paragraph.trim());
+    const paragraphs = prose.trim().split(/\n\s*\n/u).map(paragraph => paragraph.trim()).filter(Boolean);
+    if (!fitsCovel(paragraphs, passage)) return passage.paragraphs;
     const review = await audit(provider, context, protectedFacts, paragraphs);
-    const limits = passageLimits(paragraphs);
-    const verifiedDraft = !limits && !review.hardFailures.length;
-    if (verifiedDraft && !review.editorial) return paragraphs;
+    const limits = wordTarget(paragraphs);
+    const verifiedDraft = !review.hardFailures.length;
+    if (verifiedDraft && !review.editorial && !limits) return paragraphs;
 
     const repairTargets = review.hardFailures.map(({ paragraph, kind }) => ({ paragraph, instruction: hardKinds[kind] }));
     if (review.editorial && !repairTargets.length) {
@@ -194,16 +199,14 @@ export async function generatePassage(provider, { opening, passage, history, sce
       });
       const allowed = limits ? paragraphs.map((_, index) => index + 1) : repairTargets.map(target => target.paragraph);
       const revised = reviseParagraphs(paragraphs, patches, new Set(allowed));
-      if (passageLimits(revised) || (await audit(provider, context, protectedFacts, revised)).hardFailures.length) {
+      if (!fitsCovel(revised, passage) || (await audit(provider, context, protectedFacts, revised)).hardFailures.length) {
         throw new Error('Narration still violated its scene contract');
       }
       return revised;
-    } catch (error) {
-      if (verifiedDraft && !provider.signal?.aborted) return paragraphs;
-      throw error;
+    } catch {
+      return verifiedDraft ? paragraphs : passage.paragraphs;
     }
   } catch {
-    provider.signal?.throwIfAborted();
-    throw Object.assign(new Error('The story could not finish this passage. Try again.'), { status: 502 });
+    return passage.paragraphs;
   }
 }

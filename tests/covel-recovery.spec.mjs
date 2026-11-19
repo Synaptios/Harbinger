@@ -12,7 +12,7 @@ const fixture = [
 ].join('\n\n');
 const passageText = `${fixture}\n\n${fixture}\n\n${fixture}`;
 
-async function withRecoveryApp(run, { rejectFirstPlayerTurn = false } = {}) {
+async function withRecoveryApp(run, { rejectFirstPlayerTurn = false, interpret } = {}) {
   let failPlayerTurn = rejectFirstPlayerTurn;
   const provider = createServer(async (request, response) => {
     const chunks = [];
@@ -28,7 +28,9 @@ async function withRecoveryApp(run, { rejectFirstPlayerTurn = false } = {}) {
     let output = { prose: passageText };
     if (context.candidate) output = { hardFailures: [], editorial: null };
     if (context.actor) output = { thought: 'I have to weigh this flour first.' };
-    if (context.audience) output = { intents: [{ type: 'speak', words: 'Are you coming with me?', actorId: null }] };
+    if (context.audience) {
+      output = { intents: interpret?.(context) ?? [{ type: 'speak', words: 'Are you coming with me?', actorId: null }] };
+    }
     response.setHeader('Content-Type', 'application/json');
     const content = JSON.stringify(output);
     response.end(JSON.stringify(responses
@@ -53,7 +55,7 @@ async function withRecoveryApp(run, { rejectFirstPlayerTurn = false } = {}) {
   }
 }
 
-test('a failed Covel turn can retry and reload after a lost acknowledgement', async ({ page }) => {
+test('a provider outage still commits the turn and a lost acknowledgement recovers on reload', async ({ page }) => {
   test.slow();
   await withRecoveryApp(async app => {
     await page.goto(app.url);
@@ -61,29 +63,25 @@ test('a failed Covel turn can retry and reload after a lost acknowledgement', as
     const story = page.getByRole('region', { name: 'Story passage' });
     await expect(story).toBeVisible({ timeout: 30_000 });
     const input = page.getByRole('textbox', { name: 'What do you do?' });
-    await input.fill('Take the ledger to Martin');
-    await page.getByRole('button', { name: 'Continue' }).click();
-    const retry = page.getByRole('button', { name: 'Retry turn' });
-    await expect(retry).toBeVisible();
-    await expect(input).toHaveValue('Take the ledger to Martin');
-    await expect(story.getByRole('article')).toHaveCount(1);
-
     await page.route('**/api/saves/*/turns', async route => {
       const response = await route.fetch();
       expect(response.ok()).toBeTruthy();
       await route.abort();
     }, { times: 1 });
-    await retry.click();
+    await input.fill('Take the ledger to Martin');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    const retry = page.getByRole('button', { name: 'Retry turn' });
     await expect(retry).toBeVisible();
     await page.reload();
     await expect(story.getByRole('heading', { name: 'The last entry' })).toHaveCount(1);
     await expect(story.getByRole('article')).toHaveCount(2);
+    await expect(story.getByRole('article').last()).toContainText('Martin sets a finger beside the delivery column.');
     await expect(input).toHaveValue('');
     await expect(retry).toBeHidden();
   }, { rejectFirstPlayerTurn: true });
 });
 
-test('ambiguous speech asks who to address without committing the turn', async ({ page }) => {
+test('ambiguous speech commits a clarification without guessing who the player addressed', async ({ page }) => {
   test.slow();
   await withRecoveryApp(async app => {
     await page.goto(app.url);
@@ -94,14 +92,35 @@ test('ambiguous speech asks who to address without committing the turn', async (
     const draft = 'I ask, “Are you coming with me?”';
     await input.fill(draft);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Who would you like to address here?' })).toBeVisible();
+    await expect(story.getByRole('article').last()).toContainText('Who would you like to address here?');
     await expect(page.getByRole('button', { name: 'Retry turn' })).toBeHidden();
-    await expect(input).toHaveValue(draft);
-    await expect(story.getByRole('article')).toHaveCount(1);
-    await expect(story.getByRole('heading', { name: 'Alice’s bakehouse' })).toBeVisible();
+    await expect(input).toHaveValue('');
+    await expect(story.getByRole('article')).toHaveCount(2);
+    await expect(page.locator('#scene-location')).toContainText('Bakehouse lane');
     await input.fill('Go with Alice to the river');
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(story.getByRole('heading', { name: 'Thames landing' })).toBeVisible();
+    await expect(story.getByRole('article')).toHaveCount(3);
+  });
+});
+
+test('an unclear later action keeps the earlier resolved move and its Journal evidence', async ({ page }) => {
+  test.slow();
+  await withRecoveryApp(async app => {
+    await page.goto(app.url);
+    await page.getByRole('button', { name: 'Begin story' }).click();
+    const story = page.getByRole('region', { name: 'Story passage' });
+    await expect(story).toBeVisible({ timeout: 30_000 });
+    const input = page.getByRole('textbox', { name: 'What do you do?' });
+    await input.fill('Go with Alice to the river, then do the usual thing.');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(story.getByRole('article').last()).toContainText('What would you like to try here?');
     await expect(story.getByRole('article')).toHaveCount(2);
+    await expect(page.locator('#scene-location')).toContainText('Thames landing');
+    await expect(input).toHaveValue('');
+    await page.getByRole('button', { name: 'Journal' }).click();
+    await expect(page.getByRole('heading', { name: 'Thames landing', exact: true })).toBeVisible();
+  }, {
+    interpret: () => [{ type: 'choice', choice: 'Go with Alice to the river' }, { type: 'unclear' }],
   });
 });

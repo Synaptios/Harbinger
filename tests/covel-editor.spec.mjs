@@ -114,7 +114,35 @@ test('an optional revision that takes over the clerk leaves the verified draft i
   }
 });
 
-test('a repair that still reveals a confidence leaves the story and Journal at the prior turn', async ({ page }) => {
+test('a safe short passage remains playable when the word-count edit fails', async ({ page }) => {
+  test.slow();
+  const shortPassage = 'Martin draws his inkstone close and leaves enough room for the delivery book.';
+  const provider = await startProvider((operation, input) => {
+    if (operation === 'harbinger_passage') return { prose: input.opening ? guildScene : shortPassage };
+    if (operation === 'harbinger_review') return { hardFailures: [], editorial: null };
+    if (operation === 'harbinger_repair') return { patches: [] };
+    return { thought: 'I will see what the clerk makes of this.' };
+  });
+  let app;
+  try {
+    app = await startApp({ engine: 'covel', provider: provider.config });
+    await page.goto(app.url);
+    await page.getByRole('button', { name: 'Begin story' }).click();
+    const story = page.getByRole('region', { name: 'Story passage' });
+    await expect(story).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('textbox', { name: 'What do you do?' }).fill('Take the ledger to Martin');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    const latest = story.getByRole('article').last();
+    await expect(latest.getByRole('heading', { name: 'The last entry' })).toBeVisible();
+    await expect(latest).toContainText(shortPassage);
+    await expect(page.getByRole('button', { name: 'Retry turn' })).toBeHidden();
+  } finally {
+    if (app) await app.close();
+    await provider.close();
+  }
+});
+
+test('a repair that still reveals a confidence commits the resolved turn with authored prose', async ({ page }) => {
   test.slow();
   const secret = 'The blue loaf wakes at low tide.';
   const firstLeak = 'Martin speaks of the blue bread coming alive when the Thames is at its lowest.';
@@ -148,11 +176,17 @@ test('a repair that still reveals a confidence leaves the story and Journal at t
     await expect(story).toBeVisible({ timeout: 30_000 });
     await action.fill('Take the ledger to Martin');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('button', { name: 'Retry turn' })).toBeVisible();
-    await expect(action).toHaveValue('Take the ledger to Martin');
-    await expect(story.getByRole('article')).toHaveCount(1);
+    const latest = story.getByRole('article').last();
+    await expect(latest.getByRole('heading', { name: 'The last entry' })).toBeVisible();
+    await expect(latest).toContainText('Martin sets a finger beside the delivery column.');
+    await expect(story).not.toContainText(secret);
+    await expect(story).not.toContainText(firstLeak);
+    await expect(story).not.toContainText(persistentLeak);
+    await expect(page.getByRole('button', { name: 'Retry turn' })).toBeHidden();
+    await expect(action).toHaveValue('');
+    await expect(story.getByRole('article')).toHaveCount(2);
     await page.getByRole('button', { name: 'Journal' }).click();
-    await expect(page.getByRole('heading', { name: 'The guild room' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'The guild room' })).toBeVisible();
   } finally {
     if (app) await app.close();
     await provider.close();

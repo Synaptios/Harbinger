@@ -31,9 +31,20 @@ function appendMoment(state, scene, heading, paragraphs, playerText) {
   });
 }
 
-export async function resolveTurn(save, text, model, { pauseAtDirectorInterruption = false } = {}) {
+export async function resolveTurn(save, text, model, { pauseAtDirectorInterruption = false, continueOnUnclear = false } = {}) {
   const snapshot = playerView(save);
-  if (snapshot.ended) return { clarification: 'This story has reached an ending.' };
+  let state = structuredClone(save.state);
+  const speechDrafts = [];
+  delete state.turn;
+
+  function clarify(message) {
+    if (!continueOnUnclear) return { clarification: message };
+    const { scene, ended } = playerView({ ...save, state });
+    appendMoment(state, scene, ended ? 'The story closes' : 'A moment to decide', [message], text);
+    return { state, speechDrafts, authoredOnly: true };
+  }
+
+  if (snapshot.ended) return clarify('This story has reached an ending.');
   const exact = snapshot.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase()) ?? matchConversation(save.state, text);
   const audience = model?.respond ? sceneActorIds(save.state).flatMap(id => {
     const actor = actorContext(save.state, id).actor;
@@ -41,15 +52,12 @@ export async function resolveTurn(save, text, model, { pauseAtDirectorInterrupti
   }) : undefined;
   const knownIntents = fixedIntents(text, snapshot.choices);
   const useKnownIntents = !model || (model.respond && knownIntents.every(intent => intent.type !== 'unclear' && intent.type !== 'speak'));
-  const intents = exact ? [{ type: 'choice', choice: exact }] : !useKnownIntents
+  let intents = exact ? [{ type: 'choice', choice: exact }] : !useKnownIntents
     ? await model.complete({ operation: 'interpret', context: { ...actorContext(save.state, 'player'), text, scene: snapshot.scene, choices: snapshot.choices, audience } })
     : knownIntents;
-  if (!Array.isArray(intents) || !intents.length || intents.length > 8) {
-    return { clarification: 'What would you like to try first?' };
-  }
-  let state = structuredClone(save.state);
-  const speechDrafts = [];
-  delete state.turn;
+  const supportedIntents = intents => Array.isArray(intents) && intents.length > 0 && intents.length <= 8;
+  if (continueOnUnclear && !supportedIntents(intents)) intents = knownIntents;
+  if (!supportedIntents(intents)) return clarify('What would you like to try first?');
   for (const [index, intent] of intents.entries()) {
     if (intent?.type === 'choice' && typeof intent.choice === 'string') {
       const scene = playerView({ ...save, state }).scene;
@@ -57,7 +65,7 @@ export async function resolveTurn(save, text, model, { pauseAtDirectorInterrupti
       if (await playGeneratedTurn(state, intent.choice, model)) continue;
       const previousDirections = state.directorTrace?.length ?? 0;
       const result = playFixedTurn(state, intent.choice);
-      if (result.clarification) return result;
+      if (result.clarification) return clarify(result.clarification);
       state = result.state;
       if (pauseAtDirectorInterruption && index < intents.length - 1 && state.directorTrace?.length > previousDirections) {
         state.turn = { kind: 'interrupted' };
@@ -71,7 +79,7 @@ export async function resolveTurn(save, text, model, { pauseAtDirectorInterrupti
     } else if (intent?.type === 'speak' && typeof intent.words === 'string' && intent.words.trim() && text.includes(intent.words)) {
       const scene = playerView({ ...save, state }).scene;
       const reply = await model?.respond?.(state, intent);
-      if (reply?.clarification) return reply;
+      if (reply?.clarification) return clarify(reply.clarification);
       advanceAgenda(state, state.minute + 1);
       state.records.push({ type: 'protagonist-speech', minute: state.minute, words: intent.words });
       if (reply) {
@@ -82,8 +90,8 @@ export async function resolveTurn(save, text, model, { pauseAtDirectorInterrupti
         if (reply.commitment && !accepted) {
           passage.paragraphs.unshift(`${reply.name} declines to arrange the proposed meeting and stays where the clerk can speak with them.`);
         } else {
-          passage.paragraphs.unshift(`${reply.name} hears the clerk and answers.`);
-          speechDrafts.push({ actorId: reply.actorId, words: reply.reply });
+          passage.paragraphs.unshift(`${reply.name} turns toward the clerk to listen.`);
+          if (reply.reply) speechDrafts.push({ actorId: reply.actorId, words: reply.reply });
         }
       } else {
         appendMoment(state, scene, 'Words spoken', ['You speak into the room.'], '“' + intent.words + '”');
@@ -97,7 +105,9 @@ export async function resolveTurn(save, text, model, { pauseAtDirectorInterrupti
       state.turn = { kind: 'interrupted' };
       break;
     } else {
-      return { clarification: 'What would you like to try here? You can use one of the suggested actions as a starting point.' };
+      return clarify(continueOnUnclear
+        ? 'What would you like to try here?'
+        : 'What would you like to try here? You can use one of the suggested actions as a starting point.');
     }
   }
   return { state, speechDrafts };

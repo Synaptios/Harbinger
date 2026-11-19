@@ -8,6 +8,8 @@ Use Node 24 or later. Run `npm ci` and `npm run covel:setup` once, then set the 
 
 Run `npm start` and open `http://127.0.0.1:4174`. Choose **The Bread Ledger** in Covel’s world library. Open an existing game or start a new one and select **Begin Adventure**. Harbinger’s **Journal** and opt-in **Testing view** appear in Covel’s game panels. The Journal shows source labels alongside discoveries. Set `HARBINGER_PORT` to use a different local port.
 
+Harbinger still saves a resolved turn if the prose model or editor runs out of time or fails. The passage may be shorter when it uses the scene’s authored prose. If part of an action is unclear, the story keeps what it already resolved and asks about the rest in the saved passage.
+
 The local setup builds Covel’s own web app from the pinned v0.0.54 checkout and keeps the MIT license there. Covel and Harbinger’s compatibility tools use `.harbinger/covel-story.sqlite`, or `HARBINGER_COVEL_DATABASE_PATH` when configured. Stop the Covel web server before running `npm run start:covel-tools` to move or restore a full Harbinger backup. Use `npm run start:legacy` and open `http://127.0.0.1:4173` for saves from the original fixed-response app. It retains its own database and accepts `HARBINGER_DATABASE_PATH` for an override.
 
 ### Editing skill

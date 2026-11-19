@@ -62,13 +62,17 @@ export function createCovelActors(provider) {
     async complete({ operation, context, instruction }) {
       if (operation === 'generate-storehouse') return proposeStorehouseAppearance(provider, context, instruction);
       if (operation !== 'interpret') return;
-      const result = await requestStoryObject(provider, {
-        name: 'harbinger_interpret',
-        instructions: `${interpretInstruction} Use null in unused fields of each intent.`,
-        context,
-        schema: intentSchema,
-      });
-      return result?.intents;
+      try {
+        const result = await requestStoryObject(provider, {
+          name: 'harbinger_interpret',
+          instructions: `${interpretInstruction} Use null in unused fields of each intent.`,
+          context,
+          schema: intentSchema,
+        });
+        return result?.intents;
+      } catch {
+        // The resolver can still apply any actions it recognizes locally.
+      }
     },
     async respond(state, { actorId, words }) {
       const present = sceneActorIds(state);
@@ -79,19 +83,24 @@ export function createCovelActors(provider) {
       const scene = speakerContext(state, recipient);
       if (!scene.actor) return { clarification: 'Who would you like to address here?' };
       const options = meetingOptions(state, recipient).map(({ locationId, place, purpose }) => ({ locationId, place, purpose }));
-      const result = await requestStoryObject(provider, {
-        name: 'harbinger_actor_reply',
-        instructions: replyInstruction,
-        context: { ...scene, words, meetingOptions: options },
-        schema: objectSchema({ reply: { type: 'string' }, commitment: { anyOf: [
-          objectSchema({ locationId: { type: 'string' }, purpose: { type: 'string' } }), { type: 'null' },
-        ] } }),
-      });
-      const reply = typeof result?.reply === 'string' && result.reply.trim();
-      if (!reply || reply.length > 600 || /[\r\n]/u.test(reply)) {
-        throw new Error('The actor’s reply could not be resolved.');
+      const listener = { actorId: recipient, name: scene.actor.name };
+      try {
+        const result = await requestStoryObject(provider, {
+          name: 'harbinger_actor_reply',
+          instructions: replyInstruction,
+          context: { ...scene, words, meetingOptions: options },
+          schema: objectSchema({ reply: { type: 'string' }, commitment: { anyOf: [
+            objectSchema({ locationId: { type: 'string' }, purpose: { type: 'string' } }), { type: 'null' },
+          ] } }),
+        });
+        const reply = typeof result?.reply === 'string' && result.reply.trim();
+        if (reply && reply.length <= 600 && !/[\r\n]/u.test(reply)) {
+          return { ...listener, reply, commitment: result.commitment };
+        }
+      } catch {
+        // The character is still present even when no dialogue draft is available.
       }
-      return { actorId: recipient, name: scene.actor.name, reply, commitment: result.commitment };
+      return listener;
     },
     async think(view, situation) {
       try {

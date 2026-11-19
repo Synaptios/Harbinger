@@ -139,9 +139,11 @@ test('a proposal beyond the storehouse slot leaves its only route and local know
     const turn = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/turns'));
     await press('Continue');
     const result = await turn;
-    expect(!result.ok() || Boolean((await result.json()).clarification)).toBeTruthy();
-    await expect(latest.getByRole('heading', { name: 'Willow Storehouse' })).toBeVisible();
-    await expect(latest).not.toContainText('Dover');
+    expect(result.ok()).toBeTruthy();
+    const save = await result.json();
+    expect(save.scene.id).toBe('guild-storehouse');
+    expect(save.passages.at(-1).paragraphs.join(' ')).not.toContain('Dover');
+    await expect(latest.getByRole('heading', { name: 'A moment to decide' })).toBeVisible();
     await press('Ask the porter about the guild tally');
     await expect(latest).toContainText(storehouseTally);
     await press('Return to the Thames landing');
