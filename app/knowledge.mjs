@@ -40,10 +40,12 @@ export function visibleObservations(state, actorId) {
 
 export function actorContext(state, actorId) {
   const actor = (state.actors ?? characters)[actorId] ?? null;
+  const witnessed = new Map(state.records.filter(event => event.type === 'fact-access' && event.minute <= state.minute && event.recipients.includes(actorId))
+    .map(event => [event.factId, event.source]));
   return {
     actor,
-    facts: state.facts.filter(fact => fact.recipients.includes(actorId) && (fact.availableFrom ?? 0) <= state.minute)
-      .map(({ id, text, source }) => ({ id, text, source })),
+    facts: state.facts.filter(fact => (fact.recipients.includes(actorId) || witnessed.has(fact.id)) && (fact.availableFrom ?? 0) <= state.minute)
+      .map(({ id, text, source }) => ({ id, text, source: witnessed.get(id) ?? source })),
     beliefs: (state.beliefs ?? openingBeliefs).filter(belief => belief.actorId === actorId && belief.minute <= state.minute)
       .map(({ actorId, ...belief }) => belief),
     observations: visibleObservations(state, actorId),
@@ -71,6 +73,10 @@ const dialogueActions = {
   keep: 'Keep Alice’s confidence',
   tell: 'Tell Martin what Alice said about the Queen',
   remember: 'Ask Alice about your promise',
+  dover: 'Ask Martin whether Arthur has reached Dover',
+  marriage: 'Ask Alice whether Guenever married Mordred',
+  phrase: 'Ask Alice about the carter’s words',
+  statement: 'Read the carter’s sealed statement',
 };
 
 function confidence(state) {
@@ -79,12 +85,29 @@ function confidence(state) {
 
 export function conversationChoices(state) {
   const promise = confidence(state);
-  if (state.scene === 'landing' && promise && ['kept', 'broken'].includes(promise.outcome)) return [dialogueActions.remember];
+  if (state.scene === 'landing' && promise?.outcome === 'kept') {
+    const facts = actorContext(state, 'player').facts;
+    return [dialogueActions.remember,
+      ...(!facts.some(fact => fact.id === 'carter-phrase') ? [dialogueActions.phrase] : []),
+      ...(!facts.some(fact => fact.id === 'forged-letters') ? [dialogueActions.statement] : []),
+    ];
+  }
+  if (state.scene === 'landing' && promise?.outcome === 'broken') return [dialogueActions.remember];
   if (state.scene !== 'bakehouse') return [];
   if (!promise) return [dialogueActions.aliceProclamation, dialogueActions.martinProclamation, dialogueActions.martinQueen, dialogueActions.promise];
   if (promise.outcome === 'promised') return [dialogueActions.aliceQueen, dialogueActions.martinQueen];
   if (promise.outcome === 'trusted') return [dialogueActions.keep, dialogueActions.tell];
   return [dialogueActions.remember, dialogueActions.martinQueen];
+}
+
+export function matchConversation(state, text) {
+  const choices = conversationChoices(state);
+  if (state.scene === 'bakehouse') {
+    choices.push(dialogueActions.dover);
+    if (confidence(state)?.outcome === 'trusted') choices.push(dialogueActions.marriage);
+  }
+  const normalize = words => words.trim().toLowerCase().replaceAll("'", '’').replace(/[.!?]+$/u, '');
+  return choices.find(choice => normalize(choice) === normalize(text));
 }
 
 async function chooseLine(model, context, topic, options) {
@@ -121,6 +144,18 @@ function dialogueFor(state, action) {
           : 'Martin turns a page of his tally. “Wedding supplies are the only business I have on record.”'],
       };
     }
+    case dialogueActions.dover: {
+      const report = actorContext(state, 'martin').facts.find(fact => fact.id === 'dover-landing');
+      return { actorId: 'martin', heading: 'No news from Dover', topic: 'dover-landing', options: [report
+        ? 'Martin holds up a dispatch. “Arthur has landed at Dover. The messenger has the account under seal.”'
+        : 'Martin taps the last entry. “Dover has sent no account I can enter. I will leave the line blank.”'] };
+    }
+    case dialogueActions.marriage:
+      return { actorId: 'alice', heading: 'A wedding story', topic: 'guenever-refuge', options: ['Alice shakes flour out of the fold in her sleeve. “A wedding? That’s the story they gave the shops. She went to the Tower.”'] };
+    case dialogueActions.phrase:
+      return { actorId: 'alice', heading: 'What the carter said', topic: 'carter-phrase', source: 'Alice at the landing', access: { factId: 'carter-phrase', recipients: ['player'] }, options: ['Alice leans close enough to be heard above the river. “The blue loaf wakes at low tide. That was all the carter asked me to remember.”'] };
+    case dialogueActions.statement:
+      return { actorId: 'alice', heading: 'A scribe’s statement', topic: 'forged-letters', kind: 'clue', source: 'Signed statement carried from the Tower', access: { factId: 'forged-letters', recipients: ['alice', 'player'] }, options: ['The carter hands Alice a folded statement and she passes it to you. Under the date, a scribe has signed his name. “I saw Mordred commission the letters reporting that Arthur had fallen.”'] };
     case dialogueActions.promise:
       return { actorId: 'alice', heading: 'Between the two of you', topic: 'confidence', kind: 'promise', outcome: 'promised', options: ['Alice rests both hands on the flour board. “Between the two of us, then. Let him get out into the lane first.”'] };
     case dialogueActions.aliceQueen:
@@ -137,8 +172,9 @@ function dialogueFor(state, action) {
 }
 
 export async function playConversation(state, choice, scene, model) {
-  if (!conversationChoices(state).includes(choice)) return false;
-  const { actorId, heading, topic, options, kind = 'claim', outcome } = dialogueFor(state, choice);
+  const action = matchConversation(state, choice);
+  if (!action) return false;
+  const { actorId, heading, topic, options, kind = 'claim', outcome, source, access } = dialogueFor(state, action);
   const context = actorContext(state, actorId);
   const line = await chooseLine(model, context, topic, options);
   advanceAgenda(state, state.minute + 1);
@@ -147,10 +183,11 @@ export async function playConversation(state, choice, scene, model) {
   state.observations.push({
     id: 'observation-' + state.observations.length,
     passageId, kind, title: heading, text: line,
-    source: kind === 'promise' ? 'Conversation with Alice' : context.actor.name,
-    status: kind === 'promise' ? 'firsthand' : 'reported', topic, recipients: ['player'], minute: state.minute,
+    source: source ?? (kind === 'promise' ? 'Conversation with Alice' : context.actor.name),
+    status: kind === 'claim' ? 'reported' : 'firsthand', topic, recipients: ['player'], minute: state.minute,
   });
   state.records.push({ type: 'testimony', actorId, topic, minute: state.minute, passageId });
+  if (access) state.records.push({ type: 'fact-access', ...access, source, minute: state.minute, passageId });
   if (outcome) {
     const outcomeRecord = { type: 'alice-confidence', outcome, minute: state.minute, passageId };
     state.records.push(outcomeRecord);

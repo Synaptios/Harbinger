@@ -1,6 +1,6 @@
 import { playFixedTurn, playerView } from './episode.mjs';
 import { advanceAgenda } from './director.mjs';
-import { actorContext, playConversation } from './knowledge.mjs';
+import { actorContext, matchConversation, playConversation } from './knowledge.mjs';
 
 function fixedIntents(text, choices) {
   const exact = choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
@@ -30,7 +30,7 @@ function appendMoment(state, scene, heading, paragraphs, playerText) {
 async function resolveTurn(save, text, model) {
   const snapshot = playerView(save);
   if (snapshot.ended) return { clarification: 'This story has reached an ending.' };
-  const exact = snapshot.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase());
+  const exact = snapshot.choices.find(choice => choice.toLowerCase() === text.trim().toLowerCase()) ?? matchConversation(save.state, text);
   const intents = exact ? [{ type: 'choice', choice: exact }] : model
     ? await model.complete({ operation: 'interpret', context: { ...actorContext(save.state, 'player'), text, scene: snapshot.scene, choices: snapshot.choices } })
     : fixedIntents(text, snapshot.choices);

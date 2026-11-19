@@ -154,6 +154,7 @@ export function startEpisode() {
       { id: 'forged-letters', text: 'Mordred commissioned the letters that reported Arthur’s death.', recipients: ['mordred'], source: 'Malory XXI.I' },
       { id: 'carter-phrase', text: 'The blue loaf wakes at low tide.', recipients: ['alice'], source: 'The Tower carter told Alice at the landing.' },
       { id: 'guenever-refuge', text: 'Guenever took refuge in the Tower and used shopping for the proposed wedding as a pretext.', recipients: ['alice'], source: 'The Tower carter saw Guenever; the court’s public errand was wedding supplies.', availableFrom: 360 },
+      { id: 'dover-landing', text: 'Arthur has landed at Dover.', recipients: [], source: 'Malory XXI.II', availableFrom: 1440 },
     ],
     passages: [],
     observations: [],
