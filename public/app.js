@@ -7,9 +7,11 @@ const action = document.querySelector('#action');
 const status = document.querySelector('#status');
 const jump = document.querySelector('#new-passage');
 const begin = document.querySelector('#begin');
+const retry = document.querySelector('#retry');
 
 let currentSave;
 let pending = false;
+let failedTurn;
 
 export const workspace = {
   toolbar: document.querySelector('#workspace-tools'),
@@ -65,7 +67,7 @@ function show(save, { follow = false } = {}) {
     button.addEventListener('click', () => void submit(label, button));
     return button;
   }));
-  if (follow) {
+  if (follow && !document.querySelector('dialog[open]')) {
     const latest = passages.lastElementChild;
     latest?.focus({ preventScroll: true });
     latest?.scrollIntoView({ block: 'start' });
@@ -79,8 +81,43 @@ function show(save, { follow = false } = {}) {
 
 async function openSave(id) {
   const save = await request('/api/saves/' + id);
-  if (currentSave?.id !== id) action.value = '';
+  if (currentSave?.id !== id) {
+    action.value = localStorage.getItem('harbinger.draft.' + id) ?? '';
+    await restoreTurn(save);
+  }
   show(save, { follow: true });
+}
+
+async function restoreTurn(save) {
+  failedTurn = undefined;
+  retry.hidden = true;
+  const key = 'harbinger.request.' + save.id;
+  const stored = localStorage.getItem(key);
+  if (!stored) return;
+  let earlier;
+  try {
+    earlier = JSON.parse(stored);
+  } catch {
+    localStorage.removeItem(key);
+    return;
+  }
+  if (save.revision > earlier.revision) {
+    try {
+      const receipt = await request('/api/saves/' + save.id + '/receipt?requestId=' + encodeURIComponent(earlier.requestId));
+      localStorage.removeItem(key);
+      if (receipt.committed && action.value === earlier.text) {
+        action.value = '';
+        localStorage.removeItem('harbinger.draft.' + save.id);
+      }
+      if (receipt.committed) status.textContent = 'Turn saved.';
+      return;
+    } catch {
+      // The request can still be retried under its original ID.
+    }
+  }
+  failedTurn = earlier;
+  retry.hidden = false;
+  status.textContent = 'The last turn has an unconfirmed response. You can retry it.';
 }
 
 function busy(busyState) {
@@ -92,26 +129,53 @@ function busy(busyState) {
 async function submit(text, trigger) {
   if (pending || !text.trim()) return;
   const save = currentSave;
+  const turn = failedTurn?.text === text && failedTurn?.saveId === save.id
+    ? failedTurn
+    : { text, revision: save.revision, requestId: crypto.randomUUID(), saveId: save.id };
+  const recovering = turn === failedTurn;
+  const requestKey = 'harbinger.request.' + save.id;
+  localStorage.setItem(requestKey, JSON.stringify(turn));
   const follows = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 190;
+  retry.hidden = true;
   busy(true);
   status.textContent = 'Resolving the turn…';
   try {
-    const result = await request('/api/saves/' + save.id + '/turns', 'POST', {
-      text, revision: save.revision, requestId: crypto.randomUUID(),
+    let result = await request('/api/saves/' + save.id + '/turns', 'POST', {
+      text, revision: turn.revision, requestId: turn.requestId,
     });
+    if (recovering && !result.clarification) result = await request('/api/saves/' + save.id);
+    failedTurn = undefined;
+    localStorage.removeItem(requestKey);
     if (result.clarification) {
       status.textContent = result.clarification;
       return;
     }
-    if (action.value === text) action.value = '';
+    if (action.value === text) {
+      action.value = '';
+      localStorage.removeItem('harbinger.draft.' + save.id);
+    }
     show(result, { follow: follows || Boolean(trigger) });
     status.textContent = 'Turn saved.';
   } catch (error) {
+    failedTurn = turn;
+    if (action.value === text || !action.value) {
+      action.value = text;
+      localStorage.setItem('harbinger.draft.' + save.id, text);
+    }
     status.textContent = error.message;
+    retry.hidden = false;
   } finally {
     busy(false);
   }
 }
+
+retry.addEventListener('click', () => {
+  if (failedTurn) void submit(failedTurn.text, retry);
+});
+
+action.addEventListener('input', () => {
+  if (currentSave) localStorage.setItem('harbinger.draft.' + currentSave.id, action.value);
+});
 
 composer.addEventListener('submit', event => {
   event.preventDefault();

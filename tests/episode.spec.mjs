@@ -19,7 +19,8 @@ test('the clerk learns what happened at the missed inspection and finishes Alice
     await page.getByRole('button', { name: 'Help Alice load the flour' }).click();
     await expect(page.getByText('a written order pinned to the shutter', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Read the guild notice' }).click();
-    await expect(page.getByText('No ledger was produced', { exact: false })).toBeVisible();
+    const story = page.getByRole('region', { name: 'Story passage' });
+    await expect(story.getByText('No ledger was produced', { exact: false })).toBeVisible();
     await page.getByRole('button', { name: 'Offer to help Alice start again' }).click();
     await expect(page.getByRole('heading', { name: 'The price of flour' })).toBeVisible();
     await expect(page.getByText('Come at first light', { exact: false })).toBeVisible();

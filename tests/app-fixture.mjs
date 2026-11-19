@@ -16,7 +16,10 @@ export async function startApp(options = {}) {
   };
   const stop = async () => {
     if (!server?.listening) return;
-    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) => {
+      server.close(error => error ? reject(error) : resolve());
+      server.closeAllConnections();
+    });
   };
   return {
     url: await start(),
