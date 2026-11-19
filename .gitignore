@@ -1,8 +1,0 @@
-/.credentials
-/.env
-/.env.local
-/app-state/
-/node_modules/
-/.playwright-mcp/
-__pycache__/
-/docs/architecture/cache/
